@@ -12,6 +12,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
 import { fetchGoogleCampaignDaily } from "./fetchers/google.js";
+import { fetchTiktokCampaignDaily } from "./fetchers/tiktok.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "public");
@@ -74,6 +75,21 @@ async function buildClient(client) {
       console.log(`  ${client.slug}/${label}: ${camps.length} campaña (Google Ads)`);
     } catch (e) {
       console.warn(`  Google Ads ${label}: ${e.message}`);
+    }
+  }
+
+  // ── TikTok Ads (opcional; solo si está habilitado en clients.json) ──
+  const tk = client.sources.tiktok;
+  if (tk?.enabled && tk.advertiserId) {
+    const label = tk.label || "TikTok";
+    try {
+      const camps = await fetchTiktokCampaignDaily({ advertiserId: tk.advertiserId }, since, until);
+      for (const r of camps) campaignRows.push({ account: label, ...r });
+      accounts.push(label);
+      accountModes[label] = tk.mode || "sales";
+      console.log(`  ${client.slug}/${label}: ${camps.length} campaña (TikTok Ads)`);
+    } catch (e) {
+      console.warn(`  TikTok Ads ${label}: ${e.message}`);
     }
   }
 
