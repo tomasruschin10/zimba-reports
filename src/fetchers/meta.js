@@ -2,6 +2,14 @@
 // MANTENIMIENTO: Meta rota la versión ~cada 3 meses. Cambiá META_API_VERSION.
 
 const PURCHASE_TYPES = ["purchase", "omni_purchase", "offsite_conversion.fb_pixel_purchase"];
+// Mayorista: no hay compras. Leads = conversión custom; Mensajes = conversaciones iniciadas.
+const LEAD_TYPE = "offsite_conversion.custom.787145440823288";
+const MSG_TYPE = "onsite_conversion.messaging_conversation_started_7d";
+function pickAction(arr, type) {
+  if (!Array.isArray(arr)) return 0;
+  const h = arr.find((a) => a.action_type === type);
+  return h ? Number(h.value) || 0 : 0;
+}
 function pickPurchase(arr) {
   if (!Array.isArray(arr)) return 0;
   for (const t of PURCHASE_TYPES) { const h = arr.find((a) => a.action_type === t); if (h) return Number(h.value) || 0; }
@@ -38,6 +46,7 @@ export async function fetchMetaCampaignDaily({ adAccountId }, since, until) {
     date: r.date_start, campaign_name: r.campaign_name,
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
+    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
   }));
 }
 export async function fetchMetaAdDaily({ adAccountId }, since, until) {
@@ -54,5 +63,68 @@ export async function fetchMetaAdDaily({ adAccountId }, since, until) {
     date: r.date_start, ad_name: r.ad_name, adset_name: r.adset_name || "", campaign_name: r.campaign_name || "",
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
+    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
   }));
+}
+
+// Demografía: breakdown age,gender (a nivel cuenta, agregado del período).
+export async function fetchMetaDemographics({ adAccountId }, since, until) {
+  const { token, version } = base(adAccountId);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("level", "account");
+  url.searchParams.set("breakdowns", "age,gender");
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("time_range", JSON.stringify({ since, until }));
+  url.searchParams.set("fields", "impressions,clicks,spend,actions,action_values");
+  url.searchParams.set("limit", "500");
+  const rows = await fetchAll(url.toString());
+  return rows.map((r) => ({
+    date: r.date_start, age: r.age, gender: r.gender,
+    impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
+    spend: Number(r.spend) || 0, purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
+    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
+  }));
+}
+
+// Dispositivo: breakdown impression_device (a nivel cuenta, agregado del período).
+export async function fetchMetaDevices({ adAccountId }, since, until) {
+  const { token, version } = base(adAccountId);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("level", "account");
+  url.searchParams.set("breakdowns", "impression_device");
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("time_range", JSON.stringify({ since, until }));
+  url.searchParams.set("fields", "impressions,clicks,spend,actions,action_values");
+  url.searchParams.set("limit", "500");
+  const rows = await fetchAll(url.toString());
+  return rows.map((r) => ({
+    date: r.date_start, device: r.impression_device,
+    impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
+    spend: Number(r.spend) || 0, purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
+    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
+  }));
+}
+
+// Thumbnails: por cada ad_id, su miniatura. Se cachea por id para no repetir.
+// Trae la lista de ads de la cuenta con el thumbnail de su creativo.
+export async function fetchMetaThumbnails({ adAccountId }) {
+  const { token, version } = base(adAccountId);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/ads`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("fields", "name,creative{thumbnail_url}");
+  url.searchParams.set("limit", "500");
+  const map = {};
+  let next = url.toString(), guard = 0;
+  while (next && guard < 50) {
+    const res = await fetch(next);
+    const body = await res.json();
+    if (body.error) throw new Error(`Meta thumbnails: ${body.error.message}`);
+    for (const ad of body.data || []) {
+      if (ad.name && ad.creative?.thumbnail_url) map[ad.name] = ad.creative.thumbnail_url;
+    }
+    next = body.paging?.next || null; guard++;
+  }
+  return map; // { ad_name: thumbnail_url }
 }

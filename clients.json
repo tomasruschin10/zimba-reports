@@ -5,8 +5,8 @@
     "sources": {
       "meta": {
         "accounts": [
-          { "id": "act_952658240045556", "label": "Minorista" },
-          { "id": "act_1011073931241038", "label": "Mayorista" }
+          { "id": "act_952658240045556", "label": "Minorista", "mode": "sales" },
+          { "id": "act_1011073931241038", "label": "Mayorista", "mode": "leads" }
         ]
       }
     }

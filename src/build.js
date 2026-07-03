@@ -10,7 +10,7 @@
 import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchMetaCampaignDaily, fetchMetaAdDaily } from "./fetchers/meta.js";
+import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "public");
@@ -31,13 +31,31 @@ async function buildClient(client) {
 
   const campaignRows = []; // {account, date, campaign_name, ...}
   const adRows = [];        // {account, date, campaign_name, adset_name, ad_name, ...}
+  const demoRows = [];      // {account, date, age, gender, ...}
+  const deviceRows = [];    // {account, date, device, ...}
+  let thumbnails = {};      // { ad_name: thumbnail_url }
 
   for (const acc of meta.accounts) {
     const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id }, since, until);
     const ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
     for (const r of camps) campaignRows.push({ account: acc.label, ...r });
     for (const r of ads) adRows.push({ account: acc.label, ...r });
-    console.log(`  ${client.slug}/${acc.label}: ${camps.length} filas campaña, ${ads.length} ad`);
+
+    // Breakdowns (best-effort: si alguno falla, seguimos sin romper el build)
+    try {
+      const demo = await fetchMetaDemographics({ adAccountId: acc.id }, since, until);
+      for (const r of demo) demoRows.push({ account: acc.label, ...r });
+    } catch (e) { console.warn(`  demografía ${acc.label}: ${e.message}`); }
+    try {
+      const dev = await fetchMetaDevices({ adAccountId: acc.id }, since, until);
+      for (const r of dev) deviceRows.push({ account: acc.label, ...r });
+    } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
+    try {
+      const th = await fetchMetaThumbnails({ adAccountId: acc.id });
+      thumbnails = { ...thumbnails, ...th };
+    } catch (e) { console.warn(`  thumbnails ${acc.label}: ${e.message}`); }
+
+    console.log(`  ${client.slug}/${acc.label}: ${camps.length} campaña, ${ads.length} ad, ${demoRows.length} demo, ${deviceRows.length} device`);
   }
 
   return {
@@ -45,8 +63,12 @@ async function buildClient(client) {
     client: client.name,
     updatedAt: new Date().toISOString(),
     accounts: meta.accounts.map((a) => a.label),
+    accountModes: Object.fromEntries(meta.accounts.map((a) => [a.label, a.mode || "sales"])),
     campaignRows,
     adRows,
+    demoRows,
+    deviceRows,
+    thumbnails,
   };
 }
 
