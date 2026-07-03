@@ -4,90 +4,198 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Reporte de campañas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0e1116;--surface:#171b22;--surface-2:#1d2229;--border:#262d38;--ink:#e8ecf2;--muted:#8a93a2;--faint:#5c6572;--pos:#3fb950;--neg:#f85149;--accent:#5b8cff;--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;--sans:"Inter",system-ui,-apple-system,sans-serif}
+  :root{--bg:#f6f7f9;--surface:#fff;--surface-2:#f0f2f5;--border:#e4e7ec;--ink:#1a1d23;--muted:#697586;--faint:#98a2b3;--pos:#16a34a;--neg:#dc2626;--accent:#2563eb;--sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding:clamp(20px,4vw,48px);line-height:1.4}
-  .wrap{max-width:1120px;margin:0 auto}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding:clamp(20px,4vw,48px);line-height:1.45;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin:0 auto}
   header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--border)}
-  header h1{font-size:clamp(22px,3vw,30px);font-weight:600;letter-spacing:-.02em}
-  .stamp{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+  header h1{font-size:clamp(22px,3vw,30px);font-weight:650;letter-spacing:-.02em}
+  .stamp{font-size:13px;color:var(--muted);text-align:right}
   .stamp .dot{color:var(--pos)}
   .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0 2px}
-  .bar .lbl{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);margin-right:2px}
-  .pill{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:7px;padding:7px 13px;font-family:var(--mono);font-size:12px;cursor:pointer}
-  .pill:hover{color:var(--ink);border-color:var(--faint)}
-  .pill.on{background:var(--surface-2);color:var(--ink);border-color:var(--accent)}
-  .eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--faint);margin:32px 0 12px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .bar .lbl{font-size:12px;font-weight:600;color:var(--faint);margin-right:2px;min-width:64px}
+  .pill{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;transition:all .12s}
+  .pill:hover{color:var(--ink);border-color:var(--muted)}
+  .pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  select{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;max-width:280px}
+  .eyebrow{font-size:14px;font-weight:650;color:var(--ink);margin:34px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .metric{background:var(--surface);padding:16px 18px}
-  .metric .label{font-size:12px;color:var(--muted);margin-bottom:9px}
-  .metric .value{font-family:var(--mono);font-size:clamp(17px,1.9vw,23px);font-weight:500;letter-spacing:-.02em;white-space:nowrap}
+  .metric .label{font-size:13px;color:var(--muted);margin-bottom:8px}
+  .metric .value{font-size:clamp(19px,2.2vw,25px);font-weight:650;letter-spacing:-.01em;white-space:nowrap}
   table{width:100%;border-collapse:collapse;font-size:14px;margin-top:4px}
-  thead th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:500;text-align:right;padding:10px 12px;border-bottom:1px solid var(--border)}
+  thead th{font-size:12px;font-weight:600;color:var(--faint);text-align:right;padding:11px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
   thead th:first-child{text-align:left}
-  tbody td{padding:12px 12px;text-align:right;font-family:var(--mono);border-bottom:1px solid var(--surface-2)}
-  tbody td:first-child{text-align:left;font-family:var(--sans)}
-  tbody tr:hover td{background:var(--surface)}
-  .good{color:var(--pos)}.mid{color:var(--ink)}.low{color:var(--neg)}
-  .chart{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
-  .creatives{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-  .cre{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px}
-  .cre .nm{font-size:13px;margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .cre .row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:5px}
-  .cre .row b{color:var(--ink);font-weight:500}
+  tbody td{padding:11px 10px;text-align:right;border-bottom:1px solid var(--border)}
+  tbody td:first-child{text-align:left;font-weight:500}
+  tbody tr:hover td{background:var(--surface-2)}
+  tfoot td{padding:12px 10px;text-align:right;font-weight:700;border-top:2px solid var(--border)}
+  tfoot td:first-child{text-align:left}
+  .good{color:var(--pos);font-weight:600}.mid{color:var(--ink)}.low{color:var(--neg);font-weight:600}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:800px){.two{grid-template-columns:1fr}}
+  .tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .tblcard table{margin:0}.tblcard thead th,.tblcard tbody td{padding-left:16px;padding-right:16px}
+  .heat td.roascell{color:#1a1d23;font-weight:600}
   .empty{color:var(--muted);padding:36px 0;font-size:15px}
-  footer{margin-top:44px;font-size:12px;color:var(--faint);font-family:var(--mono)}
+  footer{margin-top:44px;font-size:13px;color:var(--faint)}
+  .scroll{overflow-x:auto}
 </style>
 </head>
 <body>
 <div class="wrap" id="app"><div class="empty">Cargando…</div></div>
 <script>
 const money=(n)=>"$"+(Math.round(n)||0).toLocaleString("es-AR");
+const money2=(n)=>"$"+(n||0).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const dec=(n,d=2)=>(n||0).toFixed(d);
 const num=(n)=>(Math.round(n)||0).toLocaleString("es-AR");
 const roasCls=(r)=>r>=3?"good":r>=1.5?"mid":"low";
 const cap=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
+const ymd=(d)=>d.toISOString().slice(0,10);
 
 const slug=location.pathname.split("/").pop().replace(".html","")||"index";
-let DATA=null, view="mes", account="Todas";
+let DATA=null, view="mes", account="Todas", campaign="Todas";
 
-function fmtStamp(iso){const d=new Date(iso);return d.toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});}
-
-function lineChart(series){
-  if(!series.length) return '<div class="empty">Sin datos en el rango.</div>';
-  const W=1040,H=220,pad=34;
-  const max=Math.max(...series.map(d=>d.roas),1)*1.15;
-  const x=(i)=>pad+(i*(W-pad*2))/Math.max(series.length-1,1);
-  const y=(v)=>H-pad-(v/max)*(H-pad*2);
-  const pts=series.map((d,i)=>`${x(i)},${y(d.roas)}`).join(" ");
-  const dots=series.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.roas)}" r="2.5" fill="#5b8cff"/>`).join("");
-  const gy=[0,max/2,max].map(v=>`<line x1="${pad}" x2="${W-pad}" y1="${y(v)}" y2="${y(v)}" stroke="#262d38"/><text x="${pad-6}" y="${y(v)+4}" fill="#5c6572" font-size="11" text-anchor="end" font-family="monospace">${v.toFixed(1)}</text>`).join("");
-  const step=Math.ceil(series.length/12||1);
-  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-12}" fill="#5c6572" font-size="10" text-anchor="middle" font-family="monospace">${d.date.slice(8)}</text>`:"").join("");
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${gy}<polyline points="${pts}" fill="none" stroke="#5b8cff" stroke-width="2"/>${dots}${lbl}</svg>`;
+// ---------- cálculo (en el cliente) ----------
+function derive(a){
+  const {spend=0,revenue=0,purchases=0,clicks=0,impressions=0}=a;
+  return {spend,revenue,purchases,clicks,impressions,
+    roas:spend>0?revenue/spend:0, costPerPurchase:purchases>0?spend/purchases:0,
+    aov:purchases>0?revenue/purchases:0, ctr:impressions>0?(clicks/impressions)*100:0,
+    cpc:clicks>0?spend/clicks:0, convRate:clicks>0?(purchases/clicks)*100:0};
+}
+function sumRows(rows){
+  const a={spend:0,revenue:0,purchases:0,clicks:0,impressions:0};
+  for(const r of rows){a.spend+=r.spend;a.revenue+=r.revenue;a.purchases+=r.purchases;a.clicks+=r.clicks;a.impressions+=r.impressions;}
+  return derive(a);
+}
+function inRange(d,from,to){return d>=from&&d<=to;}
+function filt(rows,from,to){
+  return rows.filter(r=>
+    (account==="Todas"||r.account===account) &&
+    (campaign==="Todas"||r.campaign_name===campaign) &&
+    inRange(r.date,from,to));
+}
+function fixedRanges(today=new Date()){
+  const y=today.getFullYear(),m=today.getMonth();
+  const d=(n)=>{const x=new Date(today);x.setDate(x.getDate()-n);return ymd(x);};
+  return [
+    {key:"hoy",label:"Hoy",from:ymd(today),to:ymd(today)},
+    {key:"u7",label:"Últimos 7",from:d(6),to:ymd(today)},
+    {key:"u15",label:"Últimos 15",from:d(14),to:ymd(today)},
+    {key:"mes",label:"Este mes",from:ymd(new Date(y,m,1)),to:ymd(today)},
+    {key:"mespasado",label:"Mes pasado",from:ymd(new Date(y,m-1,1)),to:ymd(new Date(y,m,0))},
+    {key:"u30",label:"Últimos 30",from:d(29),to:ymd(today)},
+  ];
+}
+function groupBy(rows,key){
+  const m=new Map();
+  for(const r of rows){const k=r[key]||"—";if(!m.has(k))m.set(k,[]);m.get(k).push(r);}
+  return m;
+}
+function seriesByDay(rows,valueFn){
+  const m=new Map();
+  for(const r of rows){if(!m.has(r.date))m.set(r.date,{spend:0,revenue:0});const o=m.get(r.date);o.spend+=r.spend;o.revenue+=r.revenue;}
+  return [...m.entries()].map(([date,o])=>({date,value:valueFn(o)})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 
-function bar(label,current,options,setter){
-  return `<div class="bar"><span class="lbl">${label}</span>`+
-    options.map(o=>`<span class="pill ${current===o.key?"on":""}" onclick="${setter}('${o.key}')">${o.label}</span>`).join("")+`</div>`;
+// ---------- charts ----------
+function lineChart(series,fmt){
+  if(!series.length) return '<div class="empty">Sin datos en el rango.</div>';
+  const W=1040,H=200,pad=40;
+  const max=Math.max(...series.map(d=>d.value),1)*1.15;
+  const x=(i)=>pad+(i*(W-pad*2))/Math.max(series.length-1,1);
+  const y=(v)=>H-pad-(v/max)*(H-pad*2);
+  const pts=series.map((d,i)=>`${x(i)},${y(d.value)}`).join(" ");
+  const dots=series.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.value)}" r="2.5" fill="#2563eb"/>`).join("");
+  const gy=[0,max/2,max].map(v=>`<line x1="${pad}" x2="${W-pad}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e7ec"/><text x="${pad-6}" y="${y(v)+4}" fill="#98a2b3" font-size="11" text-anchor="end">${fmt(v)}</text>`).join("");
+  const step=Math.ceil(series.length/12||1);
+  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-12}" fill="#98a2b3" font-size="10" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%">${gy}<polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="2"/>${dots}${lbl}</svg>`;
+}
+// MoM: barras agrupadas mes actual vs pasado
+function momChart(cur,prev){
+  const groups=[{k:"ROAS",cur:cur.roas,prev:prev.roas,fmt:(v)=>dec(v,1)},
+    {k:"Compras",cur:cur.purchases,prev:prev.purchases,fmt:(v)=>num(v)},
+    {k:"Costo/compra",cur:cur.costPerPurchase,prev:prev.costPerPurchase,fmt:(v)=>money(v)}];
+  return `<div class="two" style="grid-template-columns:1fr 1fr 1fr;gap:12px">`+groups.map(g=>{
+    const mx=Math.max(g.cur,g.prev,1);
+    const h=(v)=>Math.max((v/mx)*90,2);
+    return `<div style="text-align:center">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">${g.k}</div>
+      <div style="display:flex;gap:14px;align-items:flex-end;justify-content:center;height:110px">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${g.fmt(g.prev)}</div>
+          <div style="width:34px;height:${h(g.prev)}px;background:#c7d2fe;border-radius:5px 5px 0 0"></div>
+          <div style="font-size:11px;color:var(--faint);margin-top:5px">Mes pas.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
+          <div style="font-size:12px;color:var(--ink);font-weight:600;margin-bottom:4px">${g.fmt(g.cur)}</div>
+          <div style="width:34px;height:${h(g.cur)}px;background:#2563eb;border-radius:5px 5px 0 0"></div>
+          <div style="font-size:11px;color:var(--faint);margin-top:5px">Este mes</div>
+        </div>
+      </div></div>`;
+  }).join("")+`</div>`;
+}
+// heatmap verde(alto)→naranja(bajo)
+function heatColor(t){ // t 0..1
+  const lo=[249,115,22], hi=[22,163,74]; // naranja → verde
+  const c=lo.map((v,i)=>Math.round(v+(hi[i]-v)*t));
+  return `rgba(${c[0]},${c[1]},${c[2]},0.16)`;
 }
 
 function render(){
-  const v=DATA.views[view];
-  const r=v[account];
-  const t=r.totals;
-  const rows=r.campaigns.map(c=>`<tr><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
-  const cre=r.creatives.length?r.creatives.map(c=>`<div class="cre"><div class="nm">${c.name}</div><div class="row"><span>ROAS</span><b class="${roasCls(c.roas)}">${dec(c.roas)}x</b></div><div class="row"><span>Inversión</span><b>${money(c.spend)}</b></div><div class="row"><span>Compras</span><b>${num(c.purchases)}</b></div></div>`).join(""):'<div class="empty">Sin creativos con inversión en el rango.</div>';
+  const R=fixedRanges().find(r=>r.key===view);
+  const cRows=filt(DATA.campaignRows,R.from,R.to);
+  const aRows=filt(DATA.adRows,R.from,R.to);
+  const t=sumRows(cRows);
 
-  const viewOpts=Object.keys(DATA.views).map(k=>({key:k,label:DATA.views[k]._label}));
-  const acctOpts=[{key:"Todas",label:"Todas"},...DATA.accounts.map(a=>({key:a,label:a}))];
+  // tabla por campaña (respeta cuenta; ignora filtro de campaña para mostrar el desglose)
+  const cRowsAllCamp=DATA.campaignRows.filter(r=>(account==="Todas"||r.account===account)&&inRange(r.date,R.from,R.to));
+  const byCamp=[...groupBy(cRowsAllCamp,"campaign_name").entries()]
+    .map(([name,rows])=>({name,...sumRows(rows)})).sort((a,b)=>b.spend-a.spend);
+  const campRows=byCamp.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
+
+  // gráficos
+  const roasDay=seriesByDay(cRows,o=>o.spend>0?o.revenue/o.spend:0);
+  const revDay=seriesByDay(cRows,o=>o.revenue);
+
+  // MoM (mes actual MTD vs mes pasado completo) — respeta cuenta + campaña
+  const rr=fixedRanges();
+  const mesR=rr.find(r=>r.key==="mes"),pasR=rr.find(r=>r.key==="mespasado");
+  const curM=sumRows(filt(DATA.campaignRows,mesR.from,mesR.to));
+  const prevM=sumRows(filt(DATA.campaignRows,pasR.from,pasR.to));
+
+  // best creatives (tabla con heatmap por ROAS)
+  const cre=[...groupBy(aRows,"ad_name").entries()]
+    .map(([name,rows])=>({name,campaign:rows[0].campaign_name,adset:rows[0].adset_name,...sumRows(rows)}))
+    .filter(c=>c.spend>0).sort((a,b)=>b.roas-a.roas).slice(0,15);
+  const roasVals=cre.map(c=>c.roas);
+  const rmin=Math.min(...roasVals,0),rmax=Math.max(...roasVals,1);
+  const creRows=cre.map(c=>{
+    const tnorm=rmax>rmin?(c.roas-rmin)/(rmax-rmin):1;
+    return `<tr style="background:${heatColor(tnorm)}"><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td><td class="roascell">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td><td>${dec(c.ctr,1)}%</td><td>${num(c.purchases)}</td><td>${dec(c.convRate,1)}%</td></tr>`;
+  }).join("");
+
+  const viewOpts=fixedRanges().map(r=>({key:r.key,label:r.label}));
+  const acctBar=DATA.accounts.length>1?`<div class="bar"><span class="lbl">Cuenta</span>`+
+    [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${o.k}</span>`).join("")+`</div>`:"";
+  const allCampNames=[...new Set(DATA.campaignRows.filter(r=>account==="Todas"||r.account===account).map(r=>r.campaign_name))].sort();
+  const campSelect=`<div class="bar"><span class="lbl">Campaña</span><select onchange="setCampaign(this.value)"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
+    allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select></div>`;
 
   document.getElementById("app").innerHTML=`
     <header><h1>${DATA.client} · Meta Ads</h1>
-      <div class="stamp"><span class="dot">●</span> ${v._from} → ${v._to} · act. ${fmtStamp(DATA.updatedAt)}</div></header>
-    ${DATA.accounts.length>1?bar("Cuenta",account,acctOpts,"setAccount"):""}
-    ${bar("Período",view,viewOpts,"setView")}
+      <div class="stamp"><span class="dot">●</span> ${R.from} → ${R.to} · act. ${new Date(DATA.updatedAt).toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</div></header>
+    ${acctBar}
+    ${campSelect}
+    <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
+
     <p class="eyebrow">Resumen</p>
     <div class="grid">
       <div class="metric"><div class="label">ROAS</div><div class="value ${roasCls(t.roas)}">${dec(t.roas)}</div></div>
@@ -97,24 +205,41 @@ function render(){
       <div class="metric"><div class="label">Costo por compra</div><div class="value">${money(t.costPerPurchase)}</div></div>
       <div class="metric"><div class="label">Ticket promedio</div><div class="value">${money(t.aov)}</div></div>
       <div class="metric"><div class="label">CTR</div><div class="value">${dec(t.ctr,1)}%</div></div>
-      <div class="metric"><div class="label">CPC</div><div class="value">${money(t.cpc)}</div></div>
+      <div class="metric"><div class="label">CPC</div><div class="value">${money2(t.cpc)}</div></div>
+      <div class="metric"><div class="label">Conversion rate</div><div class="value">${dec(t.convRate,1)}%</div></div>
     </div>
+
     <p class="eyebrow">Por campaña</p>
-    <table><thead><tr><th>Campaña</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>Costo/compra</th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="6" style="color:var(--muted)">Sin campañas en el rango.</td></tr>'}</tbody></table>
-    <p class="eyebrow">ROAS por día</p>
-    <div class="chart">${lineChart(r.roasByDay)}</div>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th>Campaña</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>Costo/compra</th></tr></thead>
+      <tbody>${campRows||'<tr><td colspan="6" style="color:var(--muted)">Sin campañas.</td></tr>'}</tbody>
+      <tfoot><tr><td>Total</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${t.purchases>0?money(t.costPerPurchase):"—"}</td></tr></tfoot>
+    </table></div>
+
+    <div class="two">
+      <div><p class="eyebrow">ROAS por día</p><div class="card">${lineChart(roasDay,(v)=>dec(v,1))}</div></div>
+      <div><p class="eyebrow">Ingreso por día</p><div class="card">${lineChart(revDay,(v)=>"$"+num(v))}</div></div>
+    </div>
+
+    <p class="eyebrow">Mes contra mes</p>
+    <div class="card">${momChart(curM,prevM)}</div>
+
     <p class="eyebrow">Best creatives</p>
-    <div class="creatives">${cre}</div>
-    <footer>Zimba Digital · datos de Meta Ads, se actualiza 3 veces al día</footer>`;
+    <div class="tblcard scroll heat"><table>
+      <thead><tr><th>Creativo</th><th>Campaña</th><th>Inversión</th><th>ROAS</th><th>Ingresos</th><th>CPA</th><th>CTR</th><th>Compras</th><th>Conv. rate</th></tr></thead>
+      <tbody>${creRows||'<tr><td colspan="9" style="color:var(--muted)">Sin creativos con inversión.</td></tr>'}</tbody>
+    </table></div>
+
+    <footer>Zimba Digital · datos de Meta Ads, se actualiza 3 veces al día · verde = mejor ROAS, naranja = peor</footer>`;
 }
 
 function setView(k){view=k;render();}
-function setAccount(k){account=k;render();}
+function setAccount(k){account=k;campaign="Todas";render();}
+function setCampaign(k){campaign=k;render();}
 
 fetch(`./data/${slug}.json`)
   .then(r=>{if(!r.ok)throw new Error();return r.json();})
-  .then(d=>{DATA=d;view=d.defaultView||Object.keys(d.views)[0];render();})
+  .then(d=>{DATA=d;render();})
   .catch(()=>{document.getElementById("app").innerHTML='<div class="empty">Este reporte todavía no tiene datos.</div>';});
 </script>
 </body>

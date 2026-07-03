@@ -47,11 +47,11 @@ export async function fetchMetaAdDaily({ adAccountId }, since, until) {
   url.searchParams.set("level", "ad");
   url.searchParams.set("time_increment", "1");
   url.searchParams.set("time_range", JSON.stringify({ since, until }));
-  url.searchParams.set("fields", "ad_name,spend,impressions,clicks,actions,action_values");
+  url.searchParams.set("fields", "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values");
   url.searchParams.set("limit", "500");
   const rows = await fetchAll(url.toString());
   return rows.map((r) => ({
-    date: r.date_start, ad_name: r.ad_name,
+    date: r.date_start, ad_name: r.ad_name, adset_name: r.adset_name || "", campaign_name: r.campaign_name || "",
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
   }));
