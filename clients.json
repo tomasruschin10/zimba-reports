@@ -8,7 +8,8 @@
           { "id": "act_952658240045556", "label": "Minorista", "mode": "sales" },
           { "id": "act_1011073931241038", "label": "Mayorista", "mode": "leads" }
         ]
-      }
+      },
+      "google": { "enabled": false, "customerId": "PONER_CUSTOMER_ID_DE_CHILLOUT", "label": "Google", "mode": "sales" }
     }
   }
 ]

@@ -11,6 +11,7 @@ import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
+import { fetchGoogleCampaignDaily } from "./fetchers/google.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "public");
@@ -34,6 +35,8 @@ async function buildClient(client) {
   const demoRows = [];      // {account, date, age, gender, ...}
   const deviceRows = [];    // {account, date, device, ...}
   let thumbnails = {};      // { ad_name: thumbnail_url }
+  const accounts = meta.accounts.map((a) => a.label);
+  const accountModes = Object.fromEntries(meta.accounts.map((a) => [a.label, a.mode || "sales"]));
 
   for (const acc of meta.accounts) {
     const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id }, since, until);
@@ -59,12 +62,27 @@ async function buildClient(client) {
     console.log(`  ${client.slug}/${acc.label}: ${camps.length} campaña, ${ads.length} ad, ${demoRows.length} demo, ${deviceRows.length} device`);
   }
 
+  // ── Google Ads (opcional; solo si está habilitado en clients.json) ──
+  const g = client.sources.google;
+  if (g?.enabled && g.customerId) {
+    const label = g.label || "Google";
+    try {
+      const camps = await fetchGoogleCampaignDaily({ customerId: g.customerId }, since, until);
+      for (const r of camps) campaignRows.push({ account: label, ...r });
+      accounts.push(label);
+      accountModes[label] = g.mode || "sales";
+      console.log(`  ${client.slug}/${label}: ${camps.length} campaña (Google Ads)`);
+    } catch (e) {
+      console.warn(`  Google Ads ${label}: ${e.message}`);
+    }
+  }
+
   return {
     slug: client.slug,
     client: client.name,
     updatedAt: new Date().toISOString(),
-    accounts: meta.accounts.map((a) => a.label),
-    accountModes: Object.fromEntries(meta.accounts.map((a) => [a.label, a.mode || "sales"])),
+    accounts,
+    accountModes,
     campaignRows,
     adRows,
     demoRows,
