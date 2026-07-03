@@ -51,7 +51,8 @@ async function buildClient(client) {
       for (const r of dev) deviceRows.push({ account: acc.label, ...r });
     } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
     try {
-      const th = await fetchMetaThumbnails({ adAccountId: acc.id });
+      const adNames = ads.map((r) => r.ad_name);
+      const th = await fetchMetaThumbnails({ adAccountId: acc.id }, adNames);
       thumbnails = { ...thumbnails, ...th };
     } catch (e) { console.warn(`  thumbnails ${acc.label}: ${e.message}`); }
 

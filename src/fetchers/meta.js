@@ -107,24 +107,37 @@ export async function fetchMetaDevices({ adAccountId }, since, until) {
   }));
 }
 
-// Thumbnails: por cada ad_id, su miniatura. Se cachea por id para no repetir.
-// Trae la lista de ads de la cuenta con el thumbnail de su creativo.
-export async function fetchMetaThumbnails({ adAccountId }) {
+// Thumbnails: en cuentas grandes, pedir TODOS los ads con su creativo satura la
+// API ("reduce the amount of data"). En vez de eso, traemos el thumbnail solo de
+// los ads que tuvieron actividad en el período (los que la tabla puede mostrar).
+// adNames: lista de ad_name que aparecen en insights.
+export async function fetchMetaThumbnails({ adAccountId }, adNames = []) {
   const { token, version } = base(adAccountId);
+  const wanted = new Set(adNames);
+  const map = {};
+  // Recorremos los ads de la cuenta en páginas chicas y nos quedamos solo con los
+  // que están en la lista de activos. Cortamos cuando ya los encontramos a todos.
   const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/ads`);
   url.searchParams.set("access_token", token);
   url.searchParams.set("fields", "name,creative{thumbnail_url}");
-  url.searchParams.set("limit", "500");
-  const map = {};
+  url.searchParams.set("limit", "25");
+  url.searchParams.set("effective_status", JSON.stringify(["ACTIVE", "PAUSED"]));
   let next = url.toString(), guard = 0;
-  while (next && guard < 50) {
-    const res = await fetch(next);
-    const body = await res.json();
-    if (body.error) throw new Error(`Meta thumbnails: ${body.error.message}`);
+  while (next && guard < 400) {
+    let body;
+    try {
+      const res = await fetch(next);
+      body = await res.json();
+    } catch (e) { break; }
+    if (body.error) { console.warn(`    thumbnails aviso: ${body.error.message}`); break; }
     for (const ad of body.data || []) {
-      if (ad.name && ad.creative?.thumbnail_url) map[ad.name] = ad.creative.thumbnail_url;
+      if (ad.name && ad.creative?.thumbnail_url && (wanted.size === 0 || wanted.has(ad.name))) {
+        map[ad.name] = ad.creative.thumbnail_url;
+      }
     }
+    if (wanted.size > 0 && Object.keys(map).length >= wanted.size) break; // ya están todos
     next = body.paging?.next || null; guard++;
   }
-  return map; // { ad_name: thumbnail_url }
+  console.log(`    thumbnails: ${Object.keys(map).length}/${wanted.size || "?"} con miniatura`);
+  return map;
 }
