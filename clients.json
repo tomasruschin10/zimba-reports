@@ -1,0 +1,14 @@
+[
+  {
+    "slug": "chillout",
+    "name": "Chill Out",
+    "sources": {
+      "meta": {
+        "accounts": [
+          { "id": "act_952658240045556", "label": "Minorista" },
+          { "id": "act_1011073931241038", "label": "Mayorista" }
+        ]
+      }
+    }
+  }
+]
