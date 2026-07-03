@@ -2,8 +2,8 @@ name: Build & Deploy reportes
 
 on:
   schedule:
-    - cron: "0 8,14,20 * * *"   # 3x/día (UTC ≈ 10, 16, 22 Madrid)
-  workflow_dispatch:            # botón manual
+    - cron: "0 8,14,20 * * *"
+  workflow_dispatch:
   push:
     branches: [main]
 
