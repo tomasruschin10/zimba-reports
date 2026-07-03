@@ -16,10 +16,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "public");
 const ymd = (d) => d.toISOString().slice(0, 10);
 
-// Traemos ~70 días hacia atrás: cubre mes pasado completo + este mes + últimos 30.
+// Traemos desde el 1 del mes de hace 2 meses: cubre todas las vistas y sus
+// períodos anteriores comparables (mes pasado vs antemes, últimos 30 vs 30 previos).
 function fetchWindow() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
   return { since: ymd(start), until: ymd(now) };
 }
 
