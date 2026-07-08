@@ -9,7 +9,7 @@
           { "id": "act_1011073931241038", "label": "Mayorista", "mode": "leads" }
         ]
       },
-      "google": { "enabled": false, "customerId": "PONER_CUSTOMER_ID_DE_CHILLOUT", "label": "Google", "mode": "sales" },
+      "google": { "enabled": true, "customerId": "1481406288", "label": "Google", "mode": "sales" },
       "tiktok": { "enabled": false, "advertiserId": "7637507631631908871", "label": "TikTok", "mode": "sales" }
     }
   }
