@@ -200,8 +200,16 @@ function render(){
 
   // controles
   const viewOpts=fixedRanges().map(r=>({key:r.key,label:r.label}));
+  // Label lindo por cuenta: Meta ads - X, Google ads, etc.
+  const platLabel=(k)=>{
+    if(k==="Todas")return "Todas";
+    if(k==="Google")return "Google ads";
+    if(k==="TikTok")return "TikTok ads";
+    if(k==="Pinterest")return "Pinterest ads";
+    return "Meta ads - "+k;
+  };
   const acctBar=DATA.accounts.length>1?`<div class="bar"><span class="lbl">Cuenta</span>`+
-    [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${o.k}</span>`).join("")+`</div>`:"";
+    [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${platLabel(o.k)}</span>`).join("")+`</div>`:"";
   const allCampNames=[...new Set(DATA.campaignRows.filter(r=>acctOk(r)).map(r=>r.campaign_name))].sort();
   const campSelect=`<div class="bar"><span class="lbl">Campaña</span><select onchange="setCampaign(this.value)"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
     allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select></div>`;
@@ -293,7 +301,7 @@ function render(){
   const gKeywords=isGoogle?[...groupBy(gFilt(DATA.googleKeywords),"keyword").entries()].map(([name,rows])=>({name,adgroup:rows[0].ad_group_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,25):[];
 
   document.getElementById("app").innerHTML=`
-    <header><h1>${DATA.client} · Meta Ads</h1>
+    <header><h1>${DATA.client} · Reporte de campañas</h1>
       <div class="stamp"><span class="dot">●</span> ${R.from} → ${R.to} · act. ${new Date(DATA.updatedAt).toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</div></header>
     ${acctBar}
     ${campSelect}
@@ -344,7 +352,7 @@ function render(){
       <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por dispositivo</div>${deviceChart(devAgg)}</div>
     </div>`:""}
 
-    <footer>Zimba Digital · datos de Meta Ads, se actualiza 3 veces al día</footer>`;
+    <footer>Zimba Digital · se actualiza 3 veces al día</footer>`;
 }
 
 function setView(k){view=k;render();}
