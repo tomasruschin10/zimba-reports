@@ -11,7 +11,7 @@ import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
-import { fetchGoogleCampaignDaily } from "./fetchers/google.js";
+import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily } from "./fetchers/tiktok.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -64,15 +64,20 @@ async function buildClient(client) {
   }
 
   // ── Google Ads (opcional; solo si está habilitado en clients.json) ──
+  let googleAdGroups = [];
+  let googleKeywords = [];
+  let googleByType = [];
   const g = client.sources.google;
   if (g?.enabled && g.customerId) {
     const label = g.label || "Google";
     try {
-      const camps = await fetchGoogleCampaignDaily({ customerId: g.customerId }, since, until);
-      for (const r of camps) campaignRows.push({ account: label, ...r });
+      const { campaigns, adGroups, keywords } = await fetchGoogleAll({ customerId: g.customerId }, since, until);
+      for (const r of campaigns) campaignRows.push({ account: label, ...r });
+      googleAdGroups = adGroups.map((r) => ({ account: label, ...r }));
+      googleKeywords = keywords.map((r) => ({ account: label, ...r }));
       accounts.push(label);
       accountModes[label] = g.mode || "sales";
-      console.log(`  ${client.slug}/${label}: ${camps.length} campaña (Google Ads)`);
+      console.log(`  ${client.slug}/${label}: ${campaigns.length} campaña, ${adGroups.length} adgroup, ${keywords.length} keyword (Google Ads)`);
     } catch (e) {
       console.warn(`  Google Ads ${label}: ${e.message}`);
     }
@@ -104,6 +109,8 @@ async function buildClient(client) {
     demoRows,
     deviceRows,
     thumbnails,
+    googleAdGroups,
+    googleKeywords,
   };
 }
 

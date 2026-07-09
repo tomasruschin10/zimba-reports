@@ -285,6 +285,13 @@ function render(){
   const devAgg=deviceAgg(deviceRows,demoMetric);
   const hasDemo=(DATA.demoRows&&DATA.demoRows.length>0);
 
+  // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
+  const isGoogle=(account==="Google");
+  const gFilt=(rows)=>(rows||[]).filter(r=>(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
+  const gTypeRows=isGoogle?[...groupBy(cRows,"channel_type").entries()].map(([name,rows])=>({name,...sumRows(rows)})).sort((a,b)=>b.spend-a.spend):[];
+  const gAdGroups=isGoogle?[...groupBy(gFilt(DATA.googleAdGroups),"ad_group_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,20):[];
+  const gKeywords=isGoogle?[...groupBy(gFilt(DATA.googleKeywords),"keyword").entries()].map(([name,rows])=>({name,adgroup:rows[0].ad_group_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,25):[];
+
   document.getElementById("app").innerHTML=`
     <header><h1>${DATA.client} · Meta Ads</h1>
       <div class="stamp"><span class="dot">●</span> ${R.from} → ${R.to} · act. ${new Date(DATA.updatedAt).toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</div></header>
@@ -307,13 +314,31 @@ function render(){
     <p class="eyebrow">Mes contra mes</p>
     <div class="card">${momChart(momGroups,curName,prevName)}</div>
 
-    <p class="eyebrow">Best creatives</p>
+    ${!isGoogle?`<p class="eyebrow">Best creatives</p>
     <div class="tblcard scroll"><table>
       <thead><tr>${creHead}</tr></thead>
       <tbody>${creBody||`<tr><td colspan="${colspan}" style="color:var(--muted)">Sin creativos con inversión.</td></tr>`}</tbody>
-    </table></div>
+    </table></div>`:""}
 
-    ${hasDemo?`<p class="eyebrow">${demoTitle} <span style="font-weight:400;color:var(--faint);font-size:12px">· a nivel cuenta</span></p>
+    ${isGoogle&&gTypeRows.length?`<p class="eyebrow">Por tipo de campaña</p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Tipo</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>CTR</th></tr></thead>
+      <tbody>${gTypeRows.map(t=>`<tr><td>${t.name}</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${dec(t.ctr,1)}%</td></tr>`).join("")}</tbody>
+    </table></div>`:""}
+
+    ${isGoogle?`<p class="eyebrow">Grupos de anuncios <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por inversión</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Grupo</th><th style="text-align:left">Campaña</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>CTR</th><th>CPC</th></tr></thead>
+      <tbody>${gAdGroups.length?gAdGroups.map(a=>`<tr><td>${a.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${a.campaign}</td><td>${money(a.spend)}</td><td>${num(a.purchases)}</td><td class="${roasCls(a.roas)}">${dec(a.roas)}</td><td>${money(a.revenue)}</td><td>${dec(a.ctr,1)}%</td><td>${money2(a.cpc)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
+    </table></div>`:""}
+
+    ${isGoogle?`<p class="eyebrow">Keywords <span style="font-weight:400;color:var(--faint);font-size:12px">· top 25 por inversión</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Keyword</th><th style="text-align:left">Grupo</th><th>Inversión</th><th>Clicks</th><th>Impr.</th><th>CTR</th><th>CPC</th><th>Compras</th></tr></thead>
+      <tbody>${gKeywords.length?gKeywords.map(k=>`<tr><td>${k.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${k.adgroup}</td><td>${money(k.spend)}</td><td>${num(k.clicks)}</td><td>${num(k.impressions)}</td><td>${dec(k.ctr,1)}%</td><td>${money2(k.cpc)}</td><td>${num(k.purchases)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
+    </table></div>`:""}
+
+    ${hasDemo&&!isGoogle?`<p class="eyebrow">${demoTitle} <span style="font-weight:400;color:var(--faint);font-size:12px">· a nivel cuenta</span></p>
     <div class="two">
       <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por edad y género</div>${ageGenderChart(byAge)}</div>
       <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por dispositivo</div>${deviceChart(devAgg)}</div>
