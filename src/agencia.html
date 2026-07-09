@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zimba · Panel de agencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f6f7f9;--surface:#fff;--surface-2:#f0f2f5;--border:#e4e7ec;--ink:#1a1d23;--muted:#697586;--faint:#98a2b3;--pos:#16a34a;--neg:#dc2626;--accent:#2563eb;--meta:#eff4ff;--google:#fef6ec;--sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding:clamp(20px,4vw,48px);line-height:1.45;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1200px;margin:0 auto}
+  /* login */
+  .login{max-width:360px;margin:12vh auto;text-align:center}
+  .login h1{font-size:22px;font-weight:650;margin-bottom:6px}
+  .login p{font-size:14px;color:var(--muted);margin-bottom:22px}
+  .login input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;margin-bottom:12px}
+  .login button{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+  .login .err{color:var(--neg);font-size:13px;margin-top:10px;min-height:18px}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+  header h1{font-size:clamp(22px,3vw,28px);font-weight:650;letter-spacing:-.02em}
+  .stamp{font-size:13px;color:var(--muted)}.stamp .dot{color:var(--pos)}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:18px 0 6px}
+  .bar .lbl{font-size:12px;font-weight:600;color:var(--faint);min-width:64px}
+  .pill{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer}
+  .pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:12px}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead th{font-size:11px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:right}
+  thead th.grpMeta{background:var(--meta);color:#3b6fd4}
+  thead th.grpGoogle{background:var(--google);color:#c07d1e}
+  thead th:first-child{text-align:left}
+  tbody td{padding:13px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody td:first-child{text-align:left;font-weight:600}
+  tbody td.mMeta{background:var(--meta)}
+  tbody td.mGoogle{background:var(--google)}
+  tbody tr:last-child td{border-bottom:none}
+  .cli a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--border)}
+  .cli a:hover{border-color:var(--accent);color:var(--accent)}
+  .val{font-weight:600}
+  .d{font-size:11px;font-weight:600;margin-top:2px}
+  .good{color:var(--pos)}.bad{color:var(--neg)}.neu{color:var(--faint)}
+  .roasG{color:var(--pos);font-weight:700}.roasM{color:var(--ink);font-weight:600}.roasB{color:var(--neg);font-weight:700}
+  footer{margin-top:32px;font-size:12px;color:var(--faint)}
+  .empty{color:var(--muted);padding:30px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="login">
+    <h1>Panel de agencia</h1>
+    <p>Ingresá la clave para ver los reportes.</p>
+    <input id="pw" type="password" placeholder="Clave" autofocus />
+    <button onclick="tryLogin()">Entrar</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<script>
+const money=(n)=>"$"+(Math.round(n)||0).toLocaleString("es-AR");
+const dec=(n,d=1)=>(n||0).toFixed(d);
+const num=(n)=>(Math.round(n)||0).toLocaleString("es-AR");
+const ymd=(d)=>d.toISOString().slice(0,10);
+const roasCls=(r)=>r>=3?"roasG":r>=1.5?"roasM":"roasB";
+
+let DATA=null, view="mes";
+
+async function decryptJSON(enc, password){
+  const b64=(s)=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+  const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:100000,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},key,b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+async function tryLogin(){
+  const pw=document.getElementById("pw").value;
+  const err=document.getElementById("err");
+  err.textContent="";
+  try{
+    const res=await fetch("./data/agencia.enc.json");
+    if(!res.ok)throw new Error("no-file");
+    const enc=await res.json();
+    DATA=await decryptJSON(enc,pw);
+    render();
+  }catch(e){
+    err.textContent=(e.message==="no-file")?"No se encontró el panel.":"Clave incorrecta.";
+  }
+}
+document.addEventListener("keydown",(e)=>{if(e.key==="Enter"&&document.getElementById("pw"))tryLogin();});
+
+function fixedRanges(today=new Date()){
+  const y=today.getFullYear(),m=today.getMonth();
+  const d=(n)=>{const x=new Date(today);x.setDate(x.getDate()-n);return ymd(x);};
+  const monthStart=new Date(y,m,1),dom=today.getDate();
+  const pmsd=new Date(y,m-1,Math.min(dom,new Date(y,m,0).getDate()));
+  return [
+    {key:"hoy",label:"Hoy",from:ymd(today),to:ymd(today),pf:d(1),pt:d(1)},
+    {key:"u7",label:"Últimos 7",from:d(6),to:ymd(today),pf:d(13),pt:d(7)},
+    {key:"u15",label:"Últimos 15",from:d(14),to:ymd(today),pf:d(29),pt:d(15)},
+    {key:"mes",label:"Este mes",from:ymd(monthStart),to:ymd(today),pf:ymd(new Date(y,m-1,1)),pt:ymd(pmsd)},
+    {key:"mespasado",label:"Mes pasado",from:ymd(new Date(y,m-1,1)),to:ymd(new Date(y,m,0)),pf:ymd(new Date(y,m-2,1)),pt:ymd(new Date(y,m-1,0))},
+    {key:"u30",label:"Últimos 30",from:d(29),to:ymd(today),pf:d(59),pt:d(30)},
+  ];
+}
+const inRange=(d,f,t)=>d>=f&&d<=t;
+
+function platSummary(daily,plat,from,to){
+  let spend=0,purchases=0,revenue=0;
+  for(const r of daily){if(r.platform===plat&&inRange(r.date,from,to)){spend+=r.spend;purchases+=r.purchases;revenue+=r.revenue;}}
+  return {spend,purchases,revenue,roas:spend>0?revenue/spend:0};
+}
+function totalSpend(daily,from,to){let s=0;for(const r of daily){if(inRange(r.date,from,to))s+=r.spend;}return s;}
+
+// delta con dirección: 1 sube=bueno, -1 baja=bueno, 0 neutro
+function d3(cur,prev,dir){
+  if(!prev)return `<div class="d neu">—</div>`;
+  const pct=((cur-prev)/Math.abs(prev))*100;const up=pct>=0;
+  let cls="neu";if(dir!==0)cls=(dir===1?up:!up)?"good":"bad";
+  return `<div class="d ${cls}">${up?"▲":"▼"} ${Math.abs(pct).toFixed(0)}%</div>`;
+}
+function cell(valHTML,cur,prev,dir,extraCls){
+  return `<td class="${extraCls||''}"><div class="val">${valHTML}</div>${d3(cur,prev,dir)}</td>`;
+}
+
+function render(){
+  const R=fixedRanges().find(r=>r.key===view);
+  const rows=DATA.clients.map(c=>{
+    const meta=platSummary(c.daily,"Meta",R.from,R.to), metaP=platSummary(c.daily,"Meta",R.pf,R.pt);
+    const goo=platSummary(c.daily,"Google",R.from,R.to), gooP=platSummary(c.daily,"Google",R.pf,R.pt);
+    const tot=totalSpend(c.daily,R.from,R.to), totP=totalSpend(c.daily,R.pf,R.pt);
+    return `<tr>
+      <td class="cli"><a href="./${c.slug}.html">${c.name}</a></td>
+      ${cell(money(meta.spend),meta.spend,metaP.spend,0,"mMeta")}
+      ${cell(num(meta.purchases),meta.purchases,metaP.purchases,1,"mMeta")}
+      ${cell(`<span class="${roasCls(meta.roas)}">${dec(meta.roas)}</span>`,meta.roas,metaP.roas,1,"mMeta")}
+      ${cell(money(goo.spend),goo.spend,gooP.spend,0,"mGoogle")}
+      ${cell(num(goo.purchases),goo.purchases,gooP.purchases,1,"mGoogle")}
+      ${cell(`<span class="${roasCls(goo.roas)}">${dec(goo.roas)}</span>`,goo.roas,gooP.roas,1,"mGoogle")}
+      ${cell(money(tot),tot,totP,0)}
+    </tr>`;
+  }).join("");
+
+  const viewOpts=fixedRanges();
+  document.getElementById("app").innerHTML=`<div class="wrap">
+    <header><h1>Zimba · Panel de agencia</h1>
+      <div class="stamp"><span class="dot">●</span> ${R.from} → ${R.to} · act. ${new Date(DATA.updatedAt).toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</div></header>
+    <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
+    <div class="tblcard scroll"><table>
+      <thead>
+        <tr>
+          <th rowspan="2">Cliente</th>
+          <th class="grpMeta" colspan="3">Meta ads</th>
+          <th class="grpGoogle" colspan="3">Google ads</th>
+          <th rowspan="2">Total invertido</th>
+        </tr>
+        <tr>
+          <th class="grpMeta">Inversión</th><th class="grpMeta">Compras</th><th class="grpMeta">ROAS</th>
+          <th class="grpGoogle">Inversión</th><th class="grpGoogle">Compras</th><th class="grpGoogle">ROAS</th>
+        </tr>
+      </thead>
+      <tbody>${rows||'<tr><td colspan="8" class="empty">Sin clientes.</td></tr>'}</tbody>
+    </table></div>
+    <footer>Zimba Digital · vista rápida de performance · comparativa vs período anterior · verde = mejora</footer>
+  </div>`;
+}
+function setView(k){view=k;render();}
+</script>
+</body>
+</html>

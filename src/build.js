@@ -10,6 +10,7 @@
 import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { webcrypto as crypto } from "node:crypto";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily } from "./fetchers/tiktok.js";
@@ -114,11 +115,44 @@ async function buildClient(client) {
   };
 }
 
+// Resumen para el panel de agencia: filas diarias por plataforma (solo cuentas
+// modo 'sales', que son las comparables por ROAS). Meta = todo lo que no sea
+// Google/TikTok/Pinterest.
+function agencyDaily(report) {
+  const platOf = (a) => (a === "Google" ? "Google" : a === "TikTok" ? "TikTok" : a === "Pinterest" ? "Pinterest" : "Meta");
+  const salesAccts = report.accounts.filter((a) => (report.accountModes[a] || "sales") === "sales");
+  const daily = {};
+  for (const r of report.campaignRows) {
+    if (!salesAccts.includes(r.account)) continue;
+    const plat = platOf(r.account);
+    const k = `${r.date}|${plat}`;
+    if (!daily[k]) daily[k] = { date: r.date, platform: plat, spend: 0, purchases: 0, revenue: 0 };
+    daily[k].spend += r.spend; daily[k].purchases += r.purchases; daily[k].revenue += r.revenue;
+  }
+  return Object.values(daily);
+}
+
+// Encripta un texto con AES-GCM derivando la clave de la password (PBKDF2).
+// Compatible con Web Crypto en el navegador (agencia.html desencripta igual).
+async function encryptJSON(obj, password) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const km = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+    km, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(obj)));
+  const b64 = (u8) => Buffer.from(u8).toString("base64");
+  return { salt: b64(salt), iv: b64(iv), ct: b64(new Uint8Array(ct)) };
+}
+
 async function main() {
   const clients = JSON.parse(await readFile(join(ROOT, "clients.json"), "utf8"));
   await mkdir(join(OUT, "data"), { recursive: true });
 
   const built = [];
+  const agency = [];
   for (const client of clients) {
     console.log(`\n${client.name} (${client.slug})`);
     try {
@@ -127,10 +161,23 @@ async function main() {
       await writeFile(join(OUT, "data", `${client.slug}.json`), JSON.stringify(report), "utf8");
       await copyFile(join(ROOT, "src", "dashboard.html"), join(OUT, `${client.slug}.html`));
       built.push({ slug: client.slug, name: client.name });
+      agency.push({ slug: client.slug, name: client.name, daily: agencyDaily(report) });
       console.log(`  ✓ ${client.slug} generado`);
     } catch (err) {
       console.error(`  ✗ ${client.slug}: ${err.message}`);
     }
+  }
+
+  // Panel de agencia (encriptado). Solo si hay contraseña configurada.
+  const agencyPass = process.env.AGENCIA_PASSWORD;
+  if (agencyPass) {
+    const payload = { updatedAt: new Date().toISOString(), clients: agency };
+    const enc = await encryptJSON(payload, agencyPass);
+    await writeFile(join(OUT, "data", "agencia.enc.json"), JSON.stringify(enc), "utf8");
+    await copyFile(join(ROOT, "src", "agencia.html"), join(OUT, "agencia.html"));
+    console.log(`\n  ✓ panel de agencia generado (encriptado, ${agency.length} clientes)`);
+  } else {
+    console.log(`\n  · panel de agencia omitido (falta AGENCIA_PASSWORD)`);
   }
 
   const items = built.map((b) => `<li><a href="./${b.slug}.html">${b.name}</a></li>`).join("");
