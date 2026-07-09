@@ -51,7 +51,14 @@ export async function fetchGoogleCampaignDaily(config, since, until) {
   const customerId = (config.customerId || "").replace(/-/g, "");
   if (!customerId) throw new Error("Falta sources.google.customerId en clients.json");
   const c = creds();
+
+  // Diagnóstico: mostramos longitud de cada credencial (no el valor) para detectar
+  // si alguna llega vacía o con caracteres de más. Se puede sacar después.
+  const len = (s) => (s ? String(s).length : 0);
+  console.log(`    [google diag] devToken:${len(c.developerToken)} clientId:${len(c.clientId)} secret:${len(c.clientSecret)} refresh:${len(c.refreshToken)} loginCid:${len(c.loginCustomerId)}(${c.loginCustomerId}) customerId:${customerId} v:${c.version}`);
+
   const accessToken = await getAccessToken(c);
+  console.log(`    [google diag] accessToken obtenido: ${accessToken ? "SÍ len " + accessToken.length : "NO"}`);
 
   const query = `
     SELECT campaign.name, segments.date,
