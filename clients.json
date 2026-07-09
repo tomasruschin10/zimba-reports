@@ -2,27 +2,56 @@
   {
     "slug": "chillout",
     "name": "Chill Out",
+    "objetivoMensual": 20000000,
     "sources": {
       "meta": {
         "accounts": [
-          { "id": "act_952658240045556", "label": "Minorista", "mode": "sales" },
-          { "id": "act_1011073931241038", "label": "Mayorista", "mode": "leads" }
+          {
+            "id": "act_952658240045556",
+            "label": "Minorista",
+            "mode": "sales"
+          },
+          {
+            "id": "act_1011073931241038",
+            "label": "Mayorista",
+            "mode": "leads"
+          }
         ]
       },
-      "google": { "enabled": true, "customerId": "1484061288", "label": "Google", "mode": "sales" },
-      "tiktok": { "enabled": false, "advertiserId": "7637507631631908871", "label": "TikTok", "mode": "sales" }
+      "google": {
+        "enabled": true,
+        "customerId": "1484061288",
+        "label": "Google",
+        "mode": "sales"
+      },
+      "tiktok": {
+        "enabled": false,
+        "advertiserId": "7637507631631908871",
+        "label": "TikTok",
+        "mode": "sales"
+      }
     }
   },
   {
     "slug": "bacan",
     "name": "Bacan by Mantra",
+    "objetivoMensual": 8000000,
     "sources": {
       "meta": {
         "accounts": [
-          { "id": "act_1118146935278512", "label": "Minorista", "mode": "sales" }
+          {
+            "id": "act_1118146935278512",
+            "label": "Minorista",
+            "mode": "sales"
+          }
         ]
       },
-      "google": { "enabled": false, "customerId": "PONER_CUSTOMER_ID_BACAN", "label": "Google", "mode": "sales" }
+      "google": {
+        "enabled": false,
+        "customerId": "PONER_CUSTOMER_ID_BACAN",
+        "label": "Google",
+        "mode": "sales"
+      }
     }
   }
 ]

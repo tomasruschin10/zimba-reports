@@ -161,7 +161,7 @@ async function main() {
       await writeFile(join(OUT, "data", `${client.slug}.json`), JSON.stringify(report), "utf8");
       await copyFile(join(ROOT, "src", "dashboard.html"), join(OUT, `${client.slug}.html`));
       built.push({ slug: client.slug, name: client.name });
-      agency.push({ slug: client.slug, name: client.name, daily: agencyDaily(report) });
+      agency.push({ slug: client.slug, name: client.name, objetivoMensual: client.objetivoMensual || 0, daily: agencyDaily(report) });
       console.log(`  ✓ ${client.slug} generado`);
     } catch (err) {
       console.error(`  ✗ ${client.slug}: ${err.message}`);

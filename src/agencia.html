@@ -46,6 +46,20 @@
   .d{font-size:11px;font-weight:600;margin-top:2px}
   .good{color:var(--pos)}.bad{color:var(--neg)}.neu{color:var(--faint)}
   .roasG{color:var(--pos);font-weight:700}.roasM{color:var(--ink);font-weight:600}.roasB{color:var(--neg);font-weight:700}
+  .semcell{text-align:left!important}
+  .sem{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:20px;white-space:nowrap}
+  .sem .semdot{width:7px;height:7px;border-radius:50%}
+  .sem.ok{background:#e7f7ec;color:#16a34a}.sem.ok .semdot{background:#16a34a}
+  .sem.ama{background:#fef4e2;color:#c07d1e}.sem.ama .semdot{background:#e8a33d}
+  .sem.rojo{background:#fdeaea;color:#dc2626}.sem.rojo .semdot{background:#dc2626}
+  .sem.na{background:var(--surface-2);color:var(--faint)}
+  .objcell{text-align:left!important;min-width:150px}
+  .objtop{font-weight:600;font-size:13px}
+  .objslash{color:var(--faint);font-weight:400}
+  .bar-wrap{height:6px;background:var(--surface-2);border-radius:4px;margin:5px 0;overflow:hidden}
+  .bar-fill{height:100%;border-radius:4px}
+  .barOk{background:#16a34a}.barAma{background:#e8a33d}.barRojo{background:#dc2626}
+  .objproy{font-size:11px;color:var(--muted)}
   footer{margin-top:32px;font-size:12px;color:var(--faint)}
   .empty{color:var(--muted);padding:30px 0}
 </style>
@@ -117,6 +131,39 @@ function platSummary(daily,plat,from,to){
 }
 function totalSpend(daily,from,to){let s=0;for(const r of daily){if(inRange(r.date,from,to))s+=r.spend;}return s;}
 
+// Proyección del mes en curso: factura hasta hoy y proyecta a fin de mes.
+function proyeccion(daily,objetivo){
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  const from=ymd(new Date(y,m,1)),to=ymd(now);
+  let fact=0;for(const r of daily){if(inRange(r.date,from,to))fact+=r.revenue;}
+  const diaHoy=now.getDate(),diasMes=new Date(y,m+1,0).getDate();
+  const proy=diaHoy>0?fact/diaHoy*diasMes:0;
+  return {fact,proy,pctActual:objetivo>0?fact/objetivo*100:0,pctProy:objetivo>0?proy/objetivo*100:0};
+}
+
+// Semáforo: combina caída de ROAS, suba de CPA y proyección vs objetivo.
+const SEM={roasFuerte:-25,roasLeve:-10,roasMalo:1.5,cpaFuerte:30,cpaLeve:15,objBien:90,objOjo:70,gastoMin:1000};
+function semaforo(daily,R,objetivo){
+  let s=0,r=0,c=0,sp=0,rp=0,cp=0;
+  for(const x of daily){
+    if(inRange(x.date,R.from,R.to)){s+=x.spend;r+=x.revenue;c+=x.purchases;}
+    if(inRange(x.date,R.pf,R.pt)){sp+=x.spend;rp+=x.revenue;cp+=x.purchases;}
+  }
+  if(s<SEM.gastoMin)return {k:"na",txt:"—",cls:"na"};
+  const roas=s>0?r/s:0,roasP=sp>0?rp/sp:0;
+  const dRoas=roasP>0?((roas-roasP)/roasP)*100:0;
+  const cpa=c>0?s/c:0,cpaP=cp>0?sp/cp:0;
+  const dCpa=cpaP>0?((cpa-cpaP)/cpaP)*100:0;
+  const proy=objetivo>0?proyeccion(daily,objetivo).pctProy:null;
+  // rojo
+  if(dRoas<=SEM.roasFuerte || (roas>0&&roas<SEM.roasMalo) || dCpa>=SEM.cpaFuerte || (proy!==null&&proy<SEM.objOjo))
+    return {k:"rojo",txt:"Revisar",cls:"rojo"};
+  // amarillo
+  if(dRoas<=SEM.roasLeve || dCpa>=SEM.cpaLeve || (proy!==null&&proy<SEM.objBien))
+    return {k:"ama",txt:"Ojo",cls:"ama"};
+  return {k:"ok",txt:"OK",cls:"ok"};
+}
+
 // delta con dirección: 1 sube=bueno, -1 baja=bueno, 0 neutro
 function d3(cur,prev,dir){
   if(!prev)return `<div class="d neu">—</div>`;
@@ -135,8 +182,20 @@ function render(){
     const goo=platSummary(c.daily,"Google",R.from,R.to), gooP=platSummary(c.daily,"Google",R.pf,R.pt);
     const tot=totalSpend(c.daily,R.from,R.to), totP=totalSpend(c.daily,R.pf,R.pt);
     const fact=meta.revenue+goo.revenue, factP=metaP.revenue+gooP.revenue;
+    const sem=semaforo(c.daily,R,c.objetivoMensual);
+    const pr=proyeccion(c.daily,c.objetivoMensual);
+    const objCell=c.objetivoMensual>0?(()=>{
+      const pct=Math.min(pr.pctProy,150);
+      const barCls=pr.pctProy>=90?"barOk":pr.pctProy>=70?"barAma":"barRojo";
+      return `<td class="objcell">
+        <div class="objtop">${money(pr.fact)} <span class="objslash">/ ${money(c.objetivoMensual)}</span></div>
+        <div class="bar-wrap"><div class="bar-fill ${barCls}" style="width:${Math.min(pct,100)}%"></div></div>
+        <div class="objproy">proy. ${pr.pctProy.toFixed(0)}% del objetivo</div>
+      </td>`;
+    })():`<td class="objcell" style="color:var(--faint)">—</td>`;
     return `<tr>
       <td class="cli"><div>${c.name}</div><a class="verbtn" href="./${c.slug}.html">Ver reporte →</a></td>
+      <td class="semcell"><span class="sem ${sem.cls}">${sem.k!=="na"?`<span class="semdot"></span>`:""}${sem.txt}</span></td>
       ${cell(money(meta.spend),meta.spend,metaP.spend,0,"mMeta")}
       ${cell(num(meta.purchases),meta.purchases,metaP.purchases,1,"mMeta")}
       ${cell(`<span class="${roasCls(meta.roas)}">${dec(meta.roas)}</span>`,meta.roas,metaP.roas,1,"mMeta")}
@@ -145,6 +204,7 @@ function render(){
       ${cell(`<span class="${roasCls(goo.roas)}">${dec(goo.roas)}</span>`,goo.roas,gooP.roas,1,"mGoogle")}
       ${cell(money(tot),tot,totP,0)}
       ${cell(money(fact),fact,factP,1)}
+      ${objCell}
     </tr>`;
   }).join("");
 
@@ -157,17 +217,19 @@ function render(){
       <thead>
         <tr>
           <th rowspan="2">Cliente</th>
+          <th rowspan="2">Estado</th>
           <th class="grpMeta" colspan="3">Meta ads</th>
           <th class="grpGoogle" colspan="3">Google ads</th>
           <th rowspan="2">Total invertido</th>
           <th rowspan="2">Facturación</th>
+          <th rowspan="2">Objetivo mes <span style="font-weight:400;text-transform:none">(proyección)</span></th>
         </tr>
         <tr>
           <th class="grpMeta">Inversión</th><th class="grpMeta">Compras</th><th class="grpMeta">ROAS</th>
           <th class="grpGoogle">Inversión</th><th class="grpGoogle">Compras</th><th class="grpGoogle">ROAS</th>
         </tr>
       </thead>
-      <tbody>${rows||'<tr><td colspan="9" class="empty">Sin clientes.</td></tr>'}</tbody>
+      <tbody>${rows||'<tr><td colspan="11" class="empty">Sin clientes.</td></tr>'}</tbody>
     </table></div>
     <footer>Zimba Digital · vista rápida de performance · comparativa vs período anterior · verde = mejora</footer>
   </div>`;
