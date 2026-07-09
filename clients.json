@@ -12,5 +12,17 @@
       "google": { "enabled": true, "customerId": "1484061288", "label": "Google", "mode": "sales" },
       "tiktok": { "enabled": false, "advertiserId": "7637507631631908871", "label": "TikTok", "mode": "sales" }
     }
+  },
+  {
+    "slug": "bacan",
+    "name": "Bacan by Mantra",
+    "sources": {
+      "meta": {
+        "accounts": [
+          { "id": "act_1118146935278512", "label": "Minorista", "mode": "sales" }
+        ]
+      },
+      "google": { "enabled": false, "customerId": "PONER_CUSTOMER_ID_BACAN", "label": "Google", "mode": "sales" }
+    }
   }
 ]
