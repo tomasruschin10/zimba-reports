@@ -46,6 +46,20 @@
   .tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .tblcard table{margin:0}.tblcard thead th,.tblcard tbody td{padding-left:16px;padding-right:16px}
   .empty{color:var(--muted);padding:36px 0;font-size:15px}
+  .tnhead{margin:44px 0 0;padding-top:26px;border-top:2px solid var(--border)}
+  .cruce{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:14px}
+  .cruce-t{font-size:14px;font-weight:650;margin-bottom:14px}
+  .cruce-b{display:flex;flex-wrap:wrap;gap:22px}
+  .cruce-i{display:flex;flex-direction:column;gap:3px;min-width:190px}
+  .cruce-l{font-size:12px;color:var(--muted)}
+  .cruce-v{font-size:19px;font-weight:650}
+  .cruce-s{font-size:12px;font-weight:400;color:var(--faint)}
+  .cok{color:var(--pos)}.cama{color:#c07d1e}.crojo{color:var(--neg)}
+  .cruce-n{margin-top:14px;font-size:12px;color:var(--muted);line-height:1.5}
+  .perdidas{background:#fdeaea;border:1px solid #f5c2c2;border-radius:12px;padding:16px 20px;margin-top:14px}
+  .perd-t{font-size:13px;font-weight:650;color:var(--neg);margin-bottom:5px}
+  .perd-v{font-size:20px;font-weight:700;color:var(--neg)}
+  .perd-n{margin-top:7px;font-size:12px;color:#8a4a4a;line-height:1.5}
   footer{margin-top:44px;font-size:13px;color:var(--faint)}
   .scroll{overflow-x:auto}
   .mom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
@@ -293,6 +307,22 @@ function render(){
   const devAgg=deviceAgg(deviceRows,demoMetric);
   const hasDemo=(DATA.demoRows&&DATA.demoRows.length>0);
 
+  // ── Tienda Nube: ventas reales del ecommerce (independiente de la cuenta activa) ──
+  const TN=DATA.tienda;
+  const hasTN=!!(TN&&TN.daily&&TN.daily.length);
+  let tnSum=null,tnLost=null,tnPrev=null;
+  if(hasTN){
+    const inR=(d)=>inRange(d,R.from,R.to), inP=(d)=>inRange(d,R.pf,R.pt);
+    const sum=(rows,f)=>rows.filter(r=>f(r.date)).reduce((a,r)=>({orders:a.orders+r.orders,revenue:a.revenue+r.revenue,units:a.units+(r.units||0)}),{orders:0,revenue:0,units:0});
+    tnSum=sum(TN.daily,inR); tnPrev=sum(TN.daily,inP); tnLost=sum(TN.lost||[],inR);
+    tnSum.ticket=tnSum.orders>0?tnSum.revenue/tnSum.orders:0;
+    tnPrev.ticket=tnPrev.orders>0?tnPrev.revenue/tnPrev.orders:0;
+  }
+  // Cruce: lo que los ads dicen que generaron vs lo que la tienda realmente facturó.
+  const adsRev=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.revenue;}return s;})();
+  const adsPur=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.purchases;}return s;})();
+  const cobertura=hasTN&&tnSum.revenue>0?(adsRev/tnSum.revenue)*100:0;
+
   // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
   const isGoogle=(account==="Google");
   const gFilt=(rows)=>(rows||[]).filter(r=>(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
@@ -351,6 +381,46 @@ function render(){
       <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por edad y género</div>${ageGenderChart(byAge)}</div>
       <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por dispositivo</div>${deviceChart(devAgg)}</div>
     </div>`:""}
+
+    ${hasTN?`
+    <div class="tnhead"><p class="eyebrow" style="margin:0">Tienda online <span style="font-weight:400;color:var(--faint);font-size:12px">· ventas reales del ecommerce (Tienda Nube)</span></p></div>
+
+    <div class="grid">
+      ${kpi("Facturación real","tienda",money(tnSum.revenue),d(tnSum.revenue,tnPrev.revenue,1))}
+      ${kpi("Órdenes pagadas","tienda",num(tnSum.orders),d(tnSum.orders,tnPrev.orders,1))}
+      ${kpi("Ticket promedio","tienda",money(tnSum.ticket),d(tnSum.ticket,tnPrev.ticket,1))}
+      ${kpi("Unidades vendidas","tienda",num(tnSum.units),"")}
+    </div>
+
+    <div class="cruce">
+      <div class="cruce-t">Ads vs ventas reales</div>
+      <div class="cruce-b">
+        <div class="cruce-i"><span class="cruce-l">Los ads dicen que generaron</span><span class="cruce-v">${money(adsRev)} <span class="cruce-s">· ${num(adsPur)} compras</span></span></div>
+        <div class="cruce-i"><span class="cruce-l">La tienda realmente facturó</span><span class="cruce-v">${money(tnSum.revenue)} <span class="cruce-s">· ${num(tnSum.orders)} órdenes</span></span></div>
+        <div class="cruce-i"><span class="cruce-l">Cobertura de atribución</span><span class="cruce-v ${cobertura>=90?"cok":cobertura>=60?"cama":"crojo"}">${dec(cobertura,0)}%</span></div>
+      </div>
+      <div class="cruce-n">${cobertura<80?`Los ads solo explican el ${dec(cobertura,0)}% de la facturación. Puede haber ventas no atribuidas (tráfico directo, orgánico) o pérdida de señal en la medición.`:`Buena cobertura: los ads explican la mayor parte de la facturación.`}</div>
+    </div>
+
+    ${tnLost&&tnLost.orders>0?`
+    <div class="perdidas">
+      <div class="perd-t">⚠ Órdenes no concretadas</div>
+      <div class="perd-v">${num(tnLost.orders)} órdenes · ${money(tnLost.revenue)}</div>
+      <div class="perd-n">Gente que llegó al final del checkout y no pagó (pendientes, canceladas, vencidas). Es plata que ya convertiste y se está perdiendo en el último paso.</div>
+    </div>`:""}
+
+    ${TN.payments&&TN.payments.length?`<p class="eyebrow">Métodos de pago <span style="font-weight:400;color:var(--faint);font-size:12px">· dónde se concreta y dónde se pierde</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Método</th><th>Pagadas</th><th>Facturado</th><th>No concretadas</th><th>Perdido</th><th>Tasa de éxito</th></tr></thead>
+      <tbody>${TN.payments.map(p=>{const tot=p.pagadas+p.perdidas;const tasa=tot>0?(p.pagadas/tot)*100:0;return `<tr><td>${p.metodo}</td><td>${num(p.pagadas)}</td><td>${money(p.revPagadas)}</td><td>${num(p.perdidas)}</td><td>${p.perdidas>0?`<span style="color:var(--neg)">${money(p.revPerdidas)}</span>`:"—"}</td><td class="${tasa>=80?"roasG":tasa>=50?"roasM":"roasB"}">${dec(tasa,0)}%</td></tr>`;}).join("")}</tbody>
+    </table></div>`:""}
+
+    ${TN.products&&TN.products.length?`<p class="eyebrow">Productos más vendidos <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por facturación</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Producto</th><th>Unidades</th><th>Facturación</th><th>Precio prom.</th></tr></thead>
+      <tbody>${TN.products.map(p=>`<tr><td>${p.name}</td><td>${num(p.units)}</td><td>${money(p.revenue)}</td><td>${money(p.units>0?p.revenue/p.units:0)}</td></tr>`).join("")}</tbody>
+    </table></div>`:""}
+    `:""}
 
     <footer>Zimba Digital · se actualiza 3 veces al día</footer>`;
 }

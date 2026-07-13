@@ -14,6 +14,7 @@ import { webcrypto as crypto } from "node:crypto";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily } from "./fetchers/tiktok.js";
+import { fetchTiendanube } from "./fetchers/tiendanube.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "public");
@@ -99,6 +100,20 @@ async function buildClient(client) {
     }
   }
 
+  // ── Tienda Nube (opcional): ventas REALES del ecommerce ──
+  let tienda = null;
+  const tn = client.sources.tiendanube;
+  if (tn?.enabled && tn.storeId) {
+    try {
+      tienda = await fetchTiendanube({ storeId: tn.storeId, tokenEnv: tn.tokenEnv }, since, until);
+      const tot = tienda.daily.reduce((a, r) => a + r.orders, 0);
+      const lost = tienda.lost.reduce((a, r) => a + r.orders, 0);
+      console.log(`  ${client.slug}/TiendaNube: ${tot} órdenes pagadas, ${lost} perdidas, ${tienda.products.length} productos`);
+    } catch (e) {
+      console.warn(`  Tienda Nube: ${e.message}`);
+    }
+  }
+
   return {
     slug: client.slug,
     client: client.name,
@@ -112,6 +127,7 @@ async function buildClient(client) {
     thumbnails,
     googleAdGroups,
     googleKeywords,
+    tienda,
   };
 }
 

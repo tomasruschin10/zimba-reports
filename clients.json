@@ -29,6 +29,11 @@
         "advertiserId": "7637507631631908871",
         "label": "TikTok",
         "mode": "sales"
+      },
+      "tiendanube": {
+        "enabled": false,
+        "storeId": "PONER_STORE_ID_CHILLOUT",
+        "tokenEnv": "TIENDANUBE_TOKEN_CHILLOUT"
       }
     }
   },
@@ -51,6 +56,11 @@
         "customerId": "PONER_CUSTOMER_ID_BACAN",
         "label": "Google",
         "mode": "sales"
+      },
+      "tiendanube": {
+        "enabled": true,
+        "storeId": "2666512",
+        "tokenEnv": "TIENDANUBE_TOKEN_BACAN"
       }
     }
   }
