@@ -315,14 +315,14 @@ function render(){
   // ── Tienda Nube: ventas reales del ecommerce (independiente de la cuenta activa) ──
   const TN=DATA.tienda;
   const hasTN=!!(TN&&TN.daily&&TN.daily.length);
-  let tnSum=null,tnLost=null,tnPrev=null;
+  let tnSum=null,tnLost=null,tnPrev=null,tnPayAgg=[];
   if(hasTN){
     const inR=(d)=>inRange(d,R.from,R.to), inP=(d)=>inRange(d,R.pf,R.pt);
     const sum=(rows,f)=>rows.filter(r=>f(r.date)).reduce((a,r)=>({orders:a.orders+r.orders,revenue:a.revenue+r.revenue,units:a.units+(r.units||0)}),{orders:0,revenue:0,units:0});
     tnSum=sum(TN.daily,inR); tnPrev=sum(TN.daily,inP); tnLost=sum(TN.lost||[],inR);
     tnSum.ticket=tnSum.orders>0?tnSum.revenue/tnSum.orders:0;
     tnPrev.ticket=tnPrev.orders>0?tnPrev.revenue/tnPrev.orders:0;
-    const tnPayAgg=(()=>{const m={};for(const r of (TN.payments||[]).filter(r=>inR(r.date))){if(!m[r.metodo])m[r.metodo]={metodo:r.metodo,pagadas:0,perdidas:0,revPagadas:0,revPerdidas:0};m[r.metodo].pagadas+=r.pagadas;m[r.metodo].perdidas+=r.perdidas;m[r.metodo].revPagadas+=r.revPagadas;m[r.metodo].revPerdidas+=r.revPerdidas;}return Object.values(m).sort((a,b)=>(b.pagadas+b.perdidas)-(a.pagadas+a.perdidas));})();
+    tnPayAgg=(()=>{const m={};for(const r of (TN.payments||[]).filter(r=>inR(r.date))){if(!m[r.metodo])m[r.metodo]={metodo:r.metodo,pagadas:0,perdidas:0,revPagadas:0,revPerdidas:0};m[r.metodo].pagadas+=r.pagadas;m[r.metodo].perdidas+=r.perdidas;m[r.metodo].revPagadas+=r.revPagadas;m[r.metodo].revPerdidas+=r.revPerdidas;}return Object.values(m).sort((a,b)=>(b.pagadas+b.perdidas)-(a.pagadas+a.perdidas));})();
   }
   // Cruce: lo que los ads dicen que generaron vs lo que la tienda realmente facturó.
   const adsRev=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.revenue;}return s;})();
