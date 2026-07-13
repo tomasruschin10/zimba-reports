@@ -135,6 +135,8 @@ function seriesByDay(rows,valueFn){
   return [...m.entries()].map(([date,o])=>({date,value:valueFn(o)})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 
+const PAY_LABELS={credit_card:"Tarjeta de crédito",debit_card:"Tarjeta de débito",custom:"Transferencia bancaria",wallet:"Billetera virtual",ticket:"Efectivo / Pago fácil",boleto:"Boleto",pix:"Pix"};
+function payLabel(m){return PAY_LABELS[m]||m;}
 function kpi(label, cls, val, delta) {
   return `<div class="metric"><div class="label">${label}</div><div class="value ${cls||''}">${val}</div>${delta}</div>`;
 }
@@ -416,7 +418,7 @@ function render(){
     ${tnPayAgg.length?`<p class="eyebrow">Métodos de pago <span style="font-weight:400;color:var(--faint);font-size:12px">· dónde se concreta y dónde se pierde</span></p>
     <div class="tblcard scroll"><table>
       <thead><tr><th style="text-align:left">Método</th><th>Pagadas</th><th>Facturado</th><th>No concretadas</th><th>Perdido</th><th>Tasa de éxito</th></tr></thead>
-      <tbody>${tnPayAgg.map(p=>{const tot=p.pagadas+p.perdidas;const tasa=tot>0?(p.pagadas/tot)*100:0;return `<tr><td>${p.metodo}</td><td>${num(p.pagadas)}</td><td>${money(p.revPagadas)}</td><td>${num(p.perdidas)}</td><td>${p.perdidas>0?`<span style="color:var(--neg)">${money(p.revPerdidas)}</span>`:"—"}</td><td class="${tasa>=80?"roasG":tasa>=50?"roasM":"roasB"}">${dec(tasa,0)}%</td></tr>`;}).join("")}</tbody>
+      <tbody>${tnPayAgg.map(p=>{const tot=p.pagadas+p.perdidas;const tasa=tot>0?(p.pagadas/tot)*100:0;return `<tr><td>${payLabel(p.metodo)}</td><td>${num(p.pagadas)}</td><td>${money(p.revPagadas)}</td><td>${num(p.perdidas)}</td><td>${p.perdidas>0?`<span style="color:var(--neg)">${money(p.revPerdidas)}</span>`:"—"}</td><td class="${tasa>=80?"roasG":tasa>=50?"roasM":"roasB"}">${dec(tasa,0)}%</td></tr>`;}).join("")}</tbody>
     </table></div>`:""}
 
     ${TN.products&&TN.products.length?`<p class="eyebrow">Productos más vendidos <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por facturación</span></p>
