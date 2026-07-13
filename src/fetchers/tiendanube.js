@@ -73,7 +73,7 @@ export async function fetchTiendanube(config, since, until) {
   const payMap = {};
 
   for (const o of orders) {
-    const date = (o.completed_at || o.created_at || "").slice(0, 10);
+    const date = String(o.completed_at || o.created_at || "").slice(0, 10);
     if (!date) continue;
     const total = Number(o.total) || 0;
     const pago = o.payment_status;
