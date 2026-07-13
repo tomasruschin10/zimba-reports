@@ -44,7 +44,7 @@ async function fetchOrders(storeId, token, since, until) {
       created_at_max: `${until}T23:59:59-03:00`,
       per_page: 200,
       page,
-      fields: "id,number,created_at,completed_at,status,payment_status,payment_method,total,products,customer,storefront",
+      fields: "id,number,created_at,completed_at,status,payment_status,payment_details,gateway,gateway_name,total,products,customer,storefront",
     });
     if (!Array.isArray(rows) || rows.length === 0) break;
     out.push(...rows);
@@ -77,7 +77,8 @@ export async function fetchTiendanube(config, since, until) {
     if (!date) continue;
     const total = Number(o.total) || 0;
     const pago = o.payment_status;
-    const metodo = o.payment_method || "(sin método)";
+    // El método puede venir en payment_details.method, gateway_name o gateway.
+    const metodo = o.payment_details?.method || o.gateway_name || o.gateway || "(sin método)";
     const cancelada = o.status === "cancelled";
 
     if (PAGADAS.includes(pago) && !cancelada) {
