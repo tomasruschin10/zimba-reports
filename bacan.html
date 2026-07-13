@@ -135,6 +135,9 @@ function seriesByDay(rows,valueFn){
   return [...m.entries()].map(([date,o])=>({date,value:valueFn(o)})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 
+function kpi(label, cls, val, delta) {
+  return `<div class="metric"><div class="label">${label}</div><div class="value ${cls||''}">${val}</div>${delta}</div>`;
+}
 function deltaBadge(cur,prev,dir){
   if(prev===0||prev==null){return `<div class="delta"><span class="vs">— vs anterior</span></div>`;}
   const pct=((cur-prev)/Math.abs(prev))*100;const up=pct>=0;
@@ -386,9 +389,9 @@ function render(){
     <div class="tnhead"><p class="eyebrow" style="margin:0">Tienda online <span style="font-weight:400;color:var(--faint);font-size:12px">· ventas reales del ecommerce (Tienda Nube)</span></p></div>
 
     <div class="grid">
-      ${kpi("Facturación real","tienda",money(tnSum.revenue),d(tnSum.revenue,tnPrev.revenue,1))}
-      ${kpi("Órdenes pagadas","tienda",num(tnSum.orders),d(tnSum.orders,tnPrev.orders,1))}
-      ${kpi("Ticket promedio","tienda",money(tnSum.ticket),d(tnSum.ticket,tnPrev.ticket,1))}
+      ${kpi("Facturación real","tienda",money(tnSum.revenue),deltaBadge(tnSum.revenue,tnPrev.revenue,1))}
+      ${kpi("Órdenes pagadas","tienda",num(tnSum.orders),deltaBadge(tnSum.orders,tnPrev.orders,1))}
+      ${kpi("Ticket promedio","tienda",money(tnSum.ticket),deltaBadge(tnSum.ticket,tnPrev.ticket,1))}
       ${kpi("Unidades vendidas","tienda",num(tnSum.units),"")}
     </div>
 
