@@ -320,6 +320,7 @@ function render(){
     tnSum=sum(TN.daily,inR); tnPrev=sum(TN.daily,inP); tnLost=sum(TN.lost||[],inR);
     tnSum.ticket=tnSum.orders>0?tnSum.revenue/tnSum.orders:0;
     tnPrev.ticket=tnPrev.orders>0?tnPrev.revenue/tnPrev.orders:0;
+    const tnPayAgg=(()=>{const m={};for(const r of (TN.payments||[]).filter(r=>inR(r.date))){if(!m[r.metodo])m[r.metodo]={metodo:r.metodo,pagadas:0,perdidas:0,revPagadas:0,revPerdidas:0};m[r.metodo].pagadas+=r.pagadas;m[r.metodo].perdidas+=r.perdidas;m[r.metodo].revPagadas+=r.revPagadas;m[r.metodo].revPerdidas+=r.revPerdidas;}return Object.values(m).sort((a,b)=>(b.pagadas+b.perdidas)-(a.pagadas+a.perdidas));})();
   }
   // Cruce: lo que los ads dicen que generaron vs lo que la tienda realmente facturó.
   const adsRev=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.revenue;}return s;})();
@@ -412,10 +413,10 @@ function render(){
       <div class="perd-n">Gente que llegó al final del checkout y no pagó (pendientes, canceladas, vencidas). Es plata que ya convertiste y se está perdiendo en el último paso.</div>
     </div>`:""}
 
-    ${TN.payments&&TN.payments.length?`<p class="eyebrow">Métodos de pago <span style="font-weight:400;color:var(--faint);font-size:12px">· dónde se concreta y dónde se pierde</span></p>
+    ${tnPayAgg.length?`<p class="eyebrow">Métodos de pago <span style="font-weight:400;color:var(--faint);font-size:12px">· dónde se concreta y dónde se pierde</span></p>
     <div class="tblcard scroll"><table>
       <thead><tr><th style="text-align:left">Método</th><th>Pagadas</th><th>Facturado</th><th>No concretadas</th><th>Perdido</th><th>Tasa de éxito</th></tr></thead>
-      <tbody>${TN.payments.map(p=>{const tot=p.pagadas+p.perdidas;const tasa=tot>0?(p.pagadas/tot)*100:0;return `<tr><td>${p.metodo}</td><td>${num(p.pagadas)}</td><td>${money(p.revPagadas)}</td><td>${num(p.perdidas)}</td><td>${p.perdidas>0?`<span style="color:var(--neg)">${money(p.revPerdidas)}</span>`:"—"}</td><td class="${tasa>=80?"roasG":tasa>=50?"roasM":"roasB"}">${dec(tasa,0)}%</td></tr>`;}).join("")}</tbody>
+      <tbody>${tnPayAgg.map(p=>{const tot=p.pagadas+p.perdidas;const tasa=tot>0?(p.pagadas/tot)*100:0;return `<tr><td>${p.metodo}</td><td>${num(p.pagadas)}</td><td>${money(p.revPagadas)}</td><td>${num(p.perdidas)}</td><td>${p.perdidas>0?`<span style="color:var(--neg)">${money(p.revPerdidas)}</span>`:"—"}</td><td class="${tasa>=80?"roasG":tasa>=50?"roasM":"roasB"}">${dec(tasa,0)}%</td></tr>`;}).join("")}</tbody>
     </table></div>`:""}
 
     ${TN.products&&TN.products.length?`<p class="eyebrow">Productos más vendidos <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por facturación</span></p>

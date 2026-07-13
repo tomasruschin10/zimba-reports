@@ -95,16 +95,18 @@ export async function fetchTiendanube(config, since, until) {
         prodMap[name].revenue += (Number(p.price) || 0) * q;
         prodMap[name].orders += 1;
       }
-      if (!payMap[metodo]) payMap[metodo] = { metodo, pagadas: 0, perdidas: 0, revPagadas: 0, revPerdidas: 0 };
-      payMap[metodo].pagadas += 1;
-      payMap[metodo].revPagadas += total;
+      const pk = `${date}|${metodo}`;
+      if (!payMap[pk]) payMap[pk] = { date, metodo, pagadas: 0, perdidas: 0, revPagadas: 0, revPerdidas: 0 };
+      payMap[pk].pagadas += 1;
+      payMap[pk].revPagadas += total;
     } else if (PERDIDAS.includes(pago) || cancelada) {
       if (!lostMap[date]) lostMap[date] = { date, orders: 0, revenue: 0 };
       lostMap[date].orders += 1;
       lostMap[date].revenue += total;
-      if (!payMap[metodo]) payMap[metodo] = { metodo, pagadas: 0, perdidas: 0, revPagadas: 0, revPerdidas: 0 };
-      payMap[metodo].perdidas += 1;
-      payMap[metodo].revPerdidas += total;
+      const pk = `${date}|${metodo}`;
+      if (!payMap[pk]) payMap[pk] = { date, metodo, pagadas: 0, perdidas: 0, revPagadas: 0, revPerdidas: 0 };
+      payMap[pk].perdidas += 1;
+      payMap[pk].revPerdidas += total;
     }
   }
 
