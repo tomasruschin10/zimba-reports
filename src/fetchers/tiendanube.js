@@ -72,6 +72,7 @@ export async function fetchTiendanube(config, since, until) {
   // Métodos de pago (para detectar dónde se cae la gente).
   const payMap = {};
 
+  console.log("DEBUG primeras 2 ordenes:", JSON.stringify(orders.slice(0,2), null, 2));
   for (const o of orders) {
     const date = String(o.completed_at || o.created_at || "").slice(0, 10);
     if (!date) continue;
