@@ -7,25 +7,32 @@
 //
 // El advertiser_id de cada cliente va en clients.json → sources.tiktok.advertiserId.
 //
-// Facturación: TikTok no expone un campo de "valor de compra" estable, así que
-// pedimos ROAS de compras y calculamos revenue = spend * roas.
+// Facturación: revenue = spend * complete_payment_roas (TikTok no tiene campo
+// de valor de compra estable).
+// Límite API: con stat_time_day, máx 30 días por request → partimos en ventanas.
 // ─────────────────────────────────────────────
 const BASE = "https://business-api.tiktok.com/open_api";
-// Métricas válidas de la Reporting API. campaign_name viene como "metric" (raro pero así es).
 const PURCHASE_METRIC = "complete_payment";        // nº de compras (pago completado)
 const ROAS_METRIC = "complete_payment_roas";       // ROAS de compras → revenue = spend * roas
 const METRICS = ["campaign_name", "spend", "impressions", "clicks", PURCHASE_METRIC, ROAS_METRIC];
+const MAX_DAYS = 30;
+
 function creds() {
   const token = process.env.TIKTOK_ACCESS_TOKEN;
   if (!token) throw new Error("Falta TIKTOK_ACCESS_TOKEN");
   return { token, version: process.env.TIKTOK_API_VERSION || "v1.3" };
 }
-// config: { advertiserId }. since/until: 'YYYY-MM-DD'.
-export async function fetchTiktokCampaignDaily(config, since, until) {
-  const advertiserId = String(config.advertiserId || "").trim();
-  if (!advertiserId) throw new Error("Falta sources.tiktok.advertiserId en clients.json");
-  const { token, version } = creds();
-  const rows = [];
+
+// Suma días a 'YYYY-MM-DD' (en UTC, para no correrse por zona horaria).
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// Trae una ventana (<=30 días) con paginado, empujando filas a `rows`.
+async function fetchWindowInto(rows, ctx, since, until) {
+  const { advertiserId, token, version } = ctx;
   let page = 1, totalPages = 1;
   do {
     const url = new URL(`${BASE}/${version}/report/integrated/get/`);
@@ -51,7 +58,7 @@ export async function fetchTiktokCampaignDaily(config, since, until) {
       const spend = Number(m.spend) || 0;
       const roas = Number(m[ROAS_METRIC]) || 0;
       rows.push({
-        date: rawDate.slice(0, 10), // "YYYY-MM-DD 00:00:00" → "YYYY-MM-DD"
+        date: rawDate.slice(0, 10),
         campaign_name: m.campaign_name || "(sin nombre)",
         spend: spend,
         impressions: Number(m.impressions) || 0,
@@ -63,5 +70,23 @@ export async function fetchTiktokCampaignDaily(config, since, until) {
     totalPages = body.data?.page_info?.total_page || 1;
     page++;
   } while (page <= totalPages && page < 50);
+}
+
+// config: { advertiserId }. since/until: 'YYYY-MM-DD'.
+export async function fetchTiktokCampaignDaily(config, since, until) {
+  const advertiserId = String(config.advertiserId || "").trim();
+  if (!advertiserId) throw new Error("Falta sources.tiktok.advertiserId en clients.json");
+  const { token, version } = creds();
+  const ctx = { advertiserId, token, version };
+
+  const rows = [];
+  // Partimos [since, until] en ventanas de <=30 días (límite de TikTok con stat_time_day).
+  let winStart = since;
+  while (winStart <= until) {
+    let winEnd = addDays(winStart, MAX_DAYS - 1);
+    if (winEnd > until) winEnd = until;
+    await fetchWindowInto(rows, ctx, winStart, winEnd);
+    winStart = addDays(winEnd, 1);
+  }
   return rows;
 }
