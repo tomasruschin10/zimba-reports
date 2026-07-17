@@ -30,7 +30,6 @@ function fetchWindow() {
 
 async function buildClient(client) {
   const meta = client.sources.meta;
-  if (!meta?.accounts?.length) return null;
   const { since, until } = fetchWindow();
 
   const campaignRows = []; // {account, date, campaign_name, ...}
@@ -38,37 +37,44 @@ async function buildClient(client) {
   const demoRows = [];      // {account, date, age, gender, ...}
   const deviceRows = [];    // {account, date, device, ...}
   let thumbnails = {};      // { ad_name: thumbnail_url }
-  const accounts = meta.accounts.map((a) => a.label);
-  const accountModes = Object.fromEntries(meta.accounts.map((a) => [a.label, a.mode || "sales"]));
+  const accounts = [];
+  const accountModes = {};
 
-  for (const acc of meta.accounts) {
-    const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id }, since, until);
-    const ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
-    for (const r of camps) campaignRows.push({ account: acc.label, ...r });
-    for (const r of ads) adRows.push({ account: acc.label, ...r });
+  // ── Meta (cada cuenta falla sola: si una se cae, las demás y el resto de
+  //    fuentes siguen; el cliente se genera igual con lo que haya) ──
+  for (const acc of meta?.accounts || []) {
+    try {
+      const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id }, since, until);
+      const ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
+      for (const r of camps) campaignRows.push({ account: acc.label, ...r });
+      for (const r of ads) adRows.push({ account: acc.label, ...r });
+      accounts.push(acc.label);
+      accountModes[acc.label] = acc.mode || "sales";
 
-    // Breakdowns (best-effort: si alguno falla, seguimos sin romper el build)
-    try {
-      const demo = await fetchMetaDemographics({ adAccountId: acc.id }, since, until);
-      for (const r of demo) demoRows.push({ account: acc.label, ...r });
-    } catch (e) { console.warn(`  demografía ${acc.label}: ${e.message}`); }
-    try {
-      const dev = await fetchMetaDevices({ adAccountId: acc.id }, since, until);
-      for (const r of dev) deviceRows.push({ account: acc.label, ...r });
-    } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
-    try {
-      const adNames = ads.map((r) => r.ad_name);
-      const th = await fetchMetaThumbnails({ adAccountId: acc.id }, adNames);
-      thumbnails = { ...thumbnails, ...th };
-    } catch (e) { console.warn(`  thumbnails ${acc.label}: ${e.message}`); }
+      // Breakdowns (best-effort: si alguno falla, seguimos sin romper)
+      try {
+        const demo = await fetchMetaDemographics({ adAccountId: acc.id }, since, until);
+        for (const r of demo) demoRows.push({ account: acc.label, ...r });
+      } catch (e) { console.warn(`  demografía ${acc.label}: ${e.message}`); }
+      try {
+        const dev = await fetchMetaDevices({ adAccountId: acc.id }, since, until);
+        for (const r of dev) deviceRows.push({ account: acc.label, ...r });
+      } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
+      try {
+        const adNames = ads.map((r) => r.ad_name);
+        const th = await fetchMetaThumbnails({ adAccountId: acc.id }, adNames);
+        thumbnails = { ...thumbnails, ...th };
+      } catch (e) { console.warn(`  thumbnails ${acc.label}: ${e.message}`); }
 
-    console.log(`  ${client.slug}/${acc.label}: ${camps.length} campaña, ${ads.length} ad, ${demoRows.length} demo, ${deviceRows.length} device`);
+      console.log(`  ${client.slug}/${acc.label}: ${camps.length} campaña, ${ads.length} ad, ${demoRows.length} demo, ${deviceRows.length} device`);
+    } catch (e) {
+      console.warn(`  ✗ Meta ${client.slug}/${acc.label}: ${e.message} (se omite esta cuenta, sigue el resto)`);
+    }
   }
 
   // ── Google Ads (opcional; solo si está habilitado en clients.json) ──
   let googleAdGroups = [];
   let googleKeywords = [];
-  let googleByType = [];
   const g = client.sources.google;
   if (g?.enabled && g.customerId) {
     const label = g.label || "Google";
@@ -112,6 +118,12 @@ async function buildClient(client) {
     } catch (e) {
       console.warn(`  Tienda Nube: ${e.message}`);
     }
+  }
+
+  // Si NINGUNA fuente trajo nada, no generamos el cliente (evita publicar vacío).
+  if (accounts.length === 0 && !tienda) {
+    console.warn(`  ✗ ${client.slug}: ninguna fuente devolvió datos, se omite`);
+    return null;
   }
 
   return {
