@@ -30,6 +30,12 @@
         "label": "TikTok",
         "mode": "sales"
       },
+      "pinterest": {
+        "enabled": true,
+        "adAccountId": "549769711114",
+        "label": "Pinterest",
+        "mode": "sales"
+      },
       "tiendanube": {
         "enabled": false,
         "storeId": "PONER_STORE_ID_CHILLOUT",
