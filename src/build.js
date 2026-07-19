@@ -14,6 +14,7 @@ import { webcrypto as crypto } from "node:crypto";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily } from "./fetchers/tiktok.js";
+import { fetchPinterestCampaignDaily } from "./fetchers/pinterest.js";
 import { fetchTiendanube } from "./fetchers/tiendanube.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -103,6 +104,21 @@ async function buildClient(client) {
       console.log(`  ${client.slug}/${label}: ${camps.length} campaña (TikTok Ads)`);
     } catch (e) {
       console.warn(`  TikTok Ads ${label}: ${e.message}`);
+    }
+  }
+
+  // ── Pinterest Ads (opcional; solo si está habilitado en clients.json) ──
+  const pn = client.sources.pinterest;
+  if (pn?.enabled && pn.adAccountId) {
+    const label = pn.label || "Pinterest";
+    try {
+      const camps = await fetchPinterestCampaignDaily({ adAccountId: pn.adAccountId }, since, until);
+      for (const r of camps) campaignRows.push({ account: label, ...r });
+      accounts.push(label);
+      accountModes[label] = pn.mode || "sales";
+      console.log(`  ${client.slug}/${label}: ${camps.length} campaña (Pinterest Ads)`);
+    } catch (e) {
+      console.warn(`  Pinterest Ads ${label}: ${e.message}`);
     }
   }
 
