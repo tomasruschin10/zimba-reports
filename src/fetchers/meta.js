@@ -5,6 +5,51 @@ const PURCHASE_TYPES = ["purchase", "omni_purchase", "offsite_conversion.fb_pixe
 // Mayorista: no hay compras. Leads = conversión custom; Mensajes = conversaciones iniciadas.
 const LEAD_TYPE = "offsite_conversion.custom.787145440823288";
 const MSG_TYPE = "onsite_conversion.messaging_conversation_started_7d";
+
+// ── Reintentos ──────────────────────────────────────────────────────────────
+// Meta se cae sola cada tanto con errores opacos y transitorios (sobre todo en
+// cuentas grandes, donde la consulta es más pesada). Sin reintentos, un parpadeo
+// de 2 segundos deja al cliente sin esa cuenta hasta el próximo build.
+// Códigos transitorios conocidos:
+//   1   unknown error            2   service temporarily unavailable
+//   4   application request limit reached
+//   17  user request limit reached
+//   32  page request limit       613 calls per hour exceeded
+const TRANSIENT = new Set([1, 2, 4, 17, 32, 613]);
+const BACKOFF_MS = [3000, 8000, 20000, 45000]; // 4 reintentos, esperas crecientes
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Pide una URL y devuelve el JSON. Reintenta ante errores transitorios de Meta
+// o caídas de red. Los errores permanentes (token inválido, permisos) explotan
+// en el acto: reintentarlos no sirve de nada.
+async function fetchJSON(url) {
+  let lastErr;
+  for (let intento = 0; intento <= BACKOFF_MS.length; intento++) {
+    if (intento > 0) {
+      const espera = BACKOFF_MS[intento - 1];
+      console.warn(`    Meta reintento ${intento}/${BACKOFF_MS.length} en ${espera / 1000}s (${lastErr.message})`);
+      await sleep(espera);
+    }
+    try {
+      const res = await fetch(url);
+      const body = await res.json();
+      if (body.error) {
+        const err = new Error(`Meta API: ${body.error.message} (code ${body.error.code})`);
+        err.code = body.error.code;
+        if (!TRANSIENT.has(Number(body.error.code))) throw err; // permanente: cortamos
+        lastErr = err;
+        continue;
+      }
+      return body;
+    } catch (e) {
+      // Error de red / JSON roto: también vale reintentar.
+      if (e.code !== undefined && !TRANSIENT.has(Number(e.code))) throw e;
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
 function pickAction(arr, type) {
   if (!Array.isArray(arr)) return 0;
   const h = arr.find((a) => a.action_type === type);
@@ -25,8 +70,7 @@ function base(adAccountId) {
 async function fetchAll(url) {
   const out = []; let next = url, guard = 0;
   while (next && guard < 80) {
-    const res = await fetch(next); const body = await res.json();
-    if (body.error) throw new Error(`Meta API: ${body.error.message} (code ${body.error.code})`);
+    const body = await fetchJSON(next);
     if (!Array.isArray(body.data)) throw new Error("Meta API: sin 'data'");
     out.push(...body.data); next = body.paging?.next || null; guard++;
   }
@@ -126,10 +170,8 @@ export async function fetchMetaThumbnails({ adAccountId }, adNames = []) {
   while (next && guard < 400) {
     let body;
     try {
-      const res = await fetch(next);
-      body = await res.json();
-    } catch (e) { break; }
-    if (body.error) { console.warn(`    thumbnails aviso: ${body.error.message}`); break; }
+      body = await fetchJSON(next); // con reintentos
+    } catch (e) { console.warn(`    thumbnails aviso: ${e.message}`); break; }
     for (const ad of body.data || []) {
       if (ad.name && ad.creative?.thumbnail_url && (wanted.size === 0 || wanted.has(ad.name))) {
         map[ad.name] = ad.creative.thumbnail_url;
