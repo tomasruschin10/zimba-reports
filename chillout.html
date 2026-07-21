@@ -42,6 +42,9 @@
   tfoot td:first-child{text-align:left}
   .good{color:var(--pos);font-weight:600}.mid{color:var(--ink)}.low{color:var(--neg);font-weight:600}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .chartbox{position:relative}
+  .chartbox .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:7px 11px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-150%);opacity:0;transition:opacity .12s;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  .chartbox .tip.on{opacity:1}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:800px){.two{grid-template-columns:1fr}}
   .tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
@@ -169,30 +172,60 @@ function compact(v){
   if(a>=1e3)return "$"+(v/1e3).toLocaleString("es-AR",{maximumFractionDigits:1})+"K";
   return "$"+Math.round(v).toLocaleString("es-AR");
 }
-function lineChart(series,fmt){
+function lineChart(series,fmt,alto){
   if(!series.length) return '<div class="empty">Sin datos en el rango.</div>';
-  const W=1040,H=200;
+  const W=1140,H=alto||300;
   const max=Math.max(...series.map(d=>d.value),1)*1.15;
-  // margen izquierdo dinámico: ~7px por caracter de la etiqueta más ancha (arregla el corte)
+  // margen izquierdo dinámico: ~8px por caracter de la etiqueta más ancha (evita el corte)
   const labels=[0,max/2,max].map(fmt);
-  const padL=Math.max(44,...labels.map(s=>String(s).length*7+14));
-  const padR=16,padT=14,padB=28;
+  const padL=Math.max(52,...labels.map(s=>String(s).length*8+16));
+  const padR=20,padT=18,padB=34;
   const x=(i)=>padL+(i*(W-padL-padR))/Math.max(series.length-1,1);
   const y=(v)=>H-padB-(v/max)*(H-padT-padB);
   const pts=series.map((d,i)=>`${x(i)},${y(d.value)}`).join(" ");
-  const gy=[0,max/2,max].map(v=>`<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e7ec"/><text x="${padL-8}" y="${y(v)+4}" fill="#98a2b3" font-size="11" text-anchor="end">${fmt(v)}</text>`).join("");
-  const step=Math.ceil(series.length/12||1);
-  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-8}" fill="#98a2b3" font-size="10" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
-  // puntos con hover: cada uno tiene un <title> (tooltip nativo) + agranda al pasar el mouse
-  const dots=series.map((d,i)=>{
-    const cx=x(i),cy=y(d.value);
-    const fecha=d.date.slice(8)+"/"+d.date.slice(5,7);
-    return `<g class="pt"><circle cx="${cx}" cy="${cy}" r="9" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="2.5" fill="#2563eb" class="pdot"/><title>${fecha}: ${fmt(d.value)}</title></g>`;
-  }).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible">
-    <style>.pt .pdot{transition:r .1s}.pt:hover .pdot{r:5}.pt{cursor:pointer}</style>
-    ${gy}<polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="2"/>${dots}${lbl}
-  </svg>`;
+  const gy=[0,max/4,max/2,max*0.75,max].map(v=>`<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e7ec"/><text x="${padL-10}" y="${y(v)+5}" fill="#98a2b3" font-size="13" text-anchor="end">${fmt(v)}</text>`).join("");
+  const step=Math.ceil(series.length/14||1);
+  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-10}" fill="#98a2b3" font-size="12" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
+  const dots=series.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.value)}" r="3.5" fill="#2563eb"/>`).join("");
+  // datos para el tooltip: coordenadas + texto ya formateado
+  const meta=series.map((d,i)=>({x:x(i),y:y(d.value),t:`${d.date.slice(8)}/${d.date.slice(5,7)} · ${fmt(d.value)}`}));
+  const json=JSON.stringify(meta).replace(/'/g,"&#39;");
+  return `<div class="chartbox" data-pts='${json}' data-w="${W}" data-h="${H}">
+    <svg viewBox="0 0 ${W} ${H}" width="100%">
+      ${gy}
+      <line class="gd" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="#c7d2fe" stroke-width="1.5" opacity="0"/>
+      <polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${lbl}
+      <circle class="hl" cx="0" cy="0" r="6" fill="#2563eb" stroke="#fff" stroke-width="2.5" opacity="0"/>
+    </svg>
+    <div class="tip"></div>
+  </div>`;
+}
+// Engancha el hover de cada gráfico después de pintar el HTML.
+function attachCharts(){
+  document.querySelectorAll(".chartbox").forEach(box=>{
+    let pts; try{ pts=JSON.parse(box.dataset.pts); }catch(e){ return; }
+    if(!pts||!pts.length) return;
+    const W=+box.dataset.w, H=+box.dataset.h;
+    const svg=box.querySelector("svg"), hl=box.querySelector(".hl"), gd=box.querySelector(".gd"), tip=box.querySelector(".tip");
+    const mover=(clientX)=>{
+      const r=svg.getBoundingClientRect();
+      const sx=((clientX-r.left)/r.width)*W;
+      let mejor=pts[0], dist=Infinity;
+      for(const p of pts){const d=Math.abs(p.x-sx); if(d<dist){dist=d;mejor=p;}}
+      hl.setAttribute("cx",mejor.x); hl.setAttribute("cy",mejor.y); hl.setAttribute("opacity","1");
+      gd.setAttribute("x1",mejor.x); gd.setAttribute("x2",mejor.x); gd.setAttribute("opacity","1");
+      tip.textContent=mejor.t;
+      tip.style.left=(mejor.x/W*r.width)+"px";
+      tip.style.top=(mejor.y/H*r.height)+"px";
+      tip.classList.add("on");
+    };
+    box.addEventListener("mousemove",(e)=>mover(e.clientX));
+    box.addEventListener("touchmove",(e)=>{if(e.touches[0])mover(e.touches[0].clientX);},{passive:true});
+    const salir=()=>{hl.setAttribute("opacity","0");gd.setAttribute("opacity","0");tip.classList.remove("on");};
+    box.addEventListener("mouseleave",salir);
+    box.addEventListener("touchend",salir);
+  });
 }
 function momChart(groups,curName,prevName){
   return `<div class="mom">`+groups.map(g=>{
@@ -299,9 +332,8 @@ function render(){
     campBody=byC.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td><td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
     campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td><td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`;
     // gráficos: leads y mensajes por día
-    chartsHTML=`<div class="two">
-      <div><p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div></div>
-      <div><p class="eyebrow">Mensajes por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.messages),(v)=>num(v))}</div></div></div>`;
+    chartsHTML=`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>
+      <p class="eyebrow">Mensajes por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.messages),(v)=>num(v))}</div>`;
     momGroups=[{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)},{k:"Mensajes",c:curM.messages,p:prevM.messages,fmt:(v)=>num(v)},{k:"Costo/mensaje",c:curM.costPerMsg,p:prevM.costPerMsg,fmt:(v)=>money(v)}];
     // creatives por mensajes
     let cre=[...groupBy(aRows,"ad_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(c=>c.spend>0);
@@ -328,9 +360,8 @@ function render(){
     campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Compras","purchases",sortCamp,"sortByCamp")}${th("ROAS","roas",sortCamp,"sortByCamp")}${th("Valor","revenue",sortCamp,"sortByCamp")}${th("Costo/compra","costPerPurchase",sortCamp,"sortByCamp")}`;
     campBody=byC.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
     campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${t.purchases>0?money(t.costPerPurchase):"—"}</td>`;
-    chartsHTML=`<div class="two">
-      <div><p class="eyebrow">ROAS por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.spend>0?o.revenue/o.spend:0),(v)=>dec(v,1))}</div></div>
-      <div><p class="eyebrow">Ingreso por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.revenue),compact)}</div></div></div>`;
+    chartsHTML=`<p class="eyebrow">ROAS por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.spend>0?o.revenue/o.spend:0),(v)=>dec(v,1))}</div>
+      <p class="eyebrow">Ingreso por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.revenue),compact)}</div>`;
     momGroups=[{k:"ROAS",c:curM.roas,p:prevM.roas,fmt:(v)=>dec(v,1)},{k:"Compras",c:curM.purchases,p:prevM.purchases,fmt:(v)=>num(v)},{k:"Costo/compra",c:curM.costPerPurchase,p:prevM.costPerPurchase,fmt:(v)=>money(v)}];
     let cre=[...groupBy(aRows,"ad_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(c=>c.spend>0);
     const vals=cre.map(c=>c.roas);const mn=Math.min(...vals,0),mx=Math.max(...vals,1);
@@ -349,7 +380,12 @@ function render(){
   const deviceRows=filtAcct(DATA.deviceRows,R.from,R.to);
   const byAge=demoByAge(demoRows,demoMetric);
   const devAgg=deviceAgg(deviceRows,demoMetric);
-  const hasDemo=(DATA.demoRows&&DATA.demoRows.length>0);
+  // Solo mostramos audiencia/dispositivo/creativos si la cuenta activa realmente
+  // los trae. TikTok y Pinterest hoy solo devuelven nivel campaña, así que sus
+  // pestañas no muestran secciones vacías.
+  const hasDemo=demoRows.length>0;
+  const hasDevice=deviceRows.length>0;
+  const hasAds=aRows.length>0;
 
   // ── Tienda Nube: ventas reales del ecommerce (independiente de la cuenta activa) ──
   const TN=DATA.tienda;
@@ -398,7 +434,7 @@ function render(){
     <p class="eyebrow">Mes contra mes</p>
     <div class="card">${momChart(momGroups,curName,prevName)}</div>
 
-    ${!isGoogle?`<p class="eyebrow">Best creatives</p>
+    ${!isGoogle&&hasAds?`<p class="eyebrow">Best creatives</p>
     <div class="tblcard scroll"><table>
       <thead><tr>${creHead}</tr></thead>
       <tbody>${creBody||`<tr><td colspan="${colspan}" style="color:var(--muted)">Sin creativos con inversión.</td></tr>`}</tbody>
@@ -422,10 +458,10 @@ function render(){
       <tbody>${gKeywords.length?gKeywords.map(k=>`<tr><td>${k.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${k.adgroup}</td><td>${money(k.spend)}</td><td>${num(k.clicks)}</td><td>${num(k.impressions)}</td><td>${dec(k.ctr,1)}%</td><td>${money2(k.cpc)}</td><td>${num(k.purchases)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
     </table></div>`:""}
 
-    ${hasDemo&&!isGoogle?`<p class="eyebrow">${demoTitle} <span style="font-weight:400;color:var(--faint);font-size:12px">· a nivel cuenta</span></p>
+    ${(hasDemo||hasDevice)&&!isGoogle?`<p class="eyebrow">${demoTitle} <span style="font-weight:400;color:var(--faint);font-size:12px">· a nivel cuenta</span></p>
     <div class="two">
-      <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por edad y género</div>${ageGenderChart(byAge)}</div>
-      <div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por dispositivo</div>${deviceChart(devAgg)}</div>
+      ${hasDemo?`<div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por edad y género</div>${ageGenderChart(byAge)}</div>`:""}
+      ${hasDevice?`<div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por dispositivo</div>${deviceChart(devAgg)}</div>`:""}
     </div>`:""}
 
     ${hasTN?`
@@ -469,6 +505,8 @@ function render(){
     `:""}
 
     <footer>Zimba Digital · se actualiza 3 veces al día</footer>`;
+
+  attachCharts();
 }
 
 function setView(k){
