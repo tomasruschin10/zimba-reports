@@ -91,6 +91,7 @@ const slug=location.pathname.split("/").pop().replace(".html","")||"index";
 let DATA=null, view="mes", account="Todas", campaign="Todas";
 let sortCamp={col:"spend",dir:-1}, sortCre={col:"roas",dir:-1};
 let customFrom=null, customTo=null; // rango personalizado (view==="custom")
+let compare="prev"; // prev | month | year | none
 
 // modo de la cuenta activa: "sales" (venta) o "leads" (leads/mensajes).
 // En "Todas" mostramos solo cuentas de venta (por ahora solo Minorista).
@@ -133,17 +134,33 @@ function fixedRanges(today=new Date()){
     {key:"u30",label:"Últimos 30",from:d(29),to:ymd(today),pf:d(59),pt:d(30)},
   ];
 }
-// Devuelve el rango activo. Si es personalizado, calcula el período anterior
-// como un tramo del mismo largo justo antes del elegido.
+// Corre una fecha N meses (negativo = hacia atrás), respetando fin de mes.
+function shiftMonths(dateStr,n){
+  const d=new Date(dateStr+"T00:00:00Z"); const dia=d.getUTCDate();
+  d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+n);
+  const ultimo=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+  d.setUTCDate(Math.min(dia,ultimo));
+  return d.toISOString().slice(0,10);
+}
+// Devuelve el rango activo (fijo o personalizado) y su período de comparación,
+// que depende del modo elegido en la barra "Comparar".
 function currentRange(){
-  if(view!=="custom") return fixedRanges().find(r=>r.key===view);
-  const hoy=ymd(new Date());
-  const from=customFrom||hoy, to=customTo||hoy;
-  const d1=new Date(from+"T00:00:00Z"), d2=new Date(to+"T00:00:00Z");
-  const dias=Math.max(Math.round((d2-d1)/86400000)+1,1);
-  const pt=new Date(d1); pt.setUTCDate(pt.getUTCDate()-1);
-  const pf=new Date(pt); pf.setUTCDate(pf.getUTCDate()-(dias-1));
-  return {key:"custom",label:"Personalizado",from,to,pf:pf.toISOString().slice(0,10),pt:pt.toISOString().slice(0,10)};
+  let R;
+  if(view!=="custom"){
+    R={...fixedRanges().find(r=>r.key===view)};
+  }else{
+    const hoy=ymd(new Date());
+    const from=customFrom||hoy, to=customTo||hoy;
+    const d1=new Date(from+"T00:00:00Z"), d2=new Date(to+"T00:00:00Z");
+    const dias=Math.max(Math.round((d2-d1)/86400000)+1,1);
+    const pt=new Date(d1); pt.setUTCDate(pt.getUTCDate()-1);
+    const pf=new Date(pt); pf.setUTCDate(pf.getUTCDate()-(dias-1));
+    R={key:"custom",label:"Personalizado",from,to,pf:pf.toISOString().slice(0,10),pt:pt.toISOString().slice(0,10)};
+  }
+  if(compare==="month"){R.pf=shiftMonths(R.from,-1);R.pt=shiftMonths(R.to,-1);}
+  else if(compare==="year"){R.pf=shiftMonths(R.from,-12);R.pt=shiftMonths(R.to,-12);}
+  else if(compare==="none"){R.pf=null;R.pt=null;}
+  return R;
 }
 function groupBy(rows,key){const m=new Map();for(const r of rows){const k=r[key]||"—";if(!m.has(k))m.set(k,[]);m.get(k).push(r);}return m;}
 function seriesByDay(rows,valueFn){
@@ -158,6 +175,7 @@ function kpi(label, cls, val, delta) {
   return `<div class="metric"><div class="label">${label}</div><div class="value ${cls||''}">${val}</div>${delta}</div>`;
 }
 function deltaBadge(cur,prev,dir){
+  if(compare==="none")return "";
   if(prev===0||prev==null){return `<div class="delta"><span class="vs">— vs anterior</span></div>`;}
   const pct=((cur-prev)/Math.abs(prev))*100;const up=pct>=0;
   let color="var(--faint)";
@@ -281,7 +299,8 @@ function render(){
   const cRows=filt(DATA.campaignRows,R.from,R.to);
   const aRows=filt(DATA.adRows,R.from,R.to);
   const t=sumRows(cRows);
-  const tPrev=sumRows(filt(DATA.campaignRows,R.pf,R.pt));
+  const prevRows=compare==="none"?[]:filt(DATA.campaignRows,R.pf,R.pt);
+  const tPrev=sumRows(prevRows);
 
   // controles
   const viewOpts=fixedRanges().map(r=>({key:r.key,label:r.label}));
@@ -294,11 +313,20 @@ function render(){
     return "Meta ads - "+k;
   };
   const hoyStr=ymd(new Date());
-  const customBar=view==="custom"?`<div class="bar"><span class="lbl">Fechas</span>`+
+  // Las fechas se ven siempre y muestran el rango activo: tocar una alcanza para
+  // pasar a personalizado (sin tener que apretar un botón antes).
+  const customBar=`<div class="bar"><span class="lbl">Fechas</span>`+
     `<input type="date" class="dt" value="${R.from}" max="${hoyStr}" onchange="setCustomFrom(this.value)">`+
     `<span style="color:var(--faint)">→</span>`+
     `<input type="date" class="dt" value="${R.to}" max="${hoyStr}" onchange="setCustomTo(this.value)">`+
-    `<span style="font-size:12px;color:var(--faint)">vs ${R.pf} → ${R.pt}</span></div>`:"";
+    (view==="custom"?`<span style="font-size:12px;color:var(--accent);font-weight:600">rango personalizado</span>`:"")+
+    `</div>`;
+  const cmpOpts=[{k:"prev",l:"Período anterior"},{k:"month",l:"Mes anterior"},{k:"year",l:"Año anterior"},{k:"none",l:"Sin comparar"}];
+  const sinPrev=compare!=="none"&&prevRows.length===0;
+  const cmpBar=`<div class="bar"><span class="lbl">Comparar</span>`+
+    cmpOpts.map(o=>`<span class="pill ${compare===o.k?"on":""}" onclick="setCompare('${o.k}')">${o.l}</span>`).join("")+
+    (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos en ese período":"vs "+R.pf+" → "+R.pt}</span>`:"")+
+    `</div>`;
   const acctBar=DATA.accounts.length>1?`<div class="bar"><span class="lbl">Cuenta</span>`+
     [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${platLabel(o.k)}</span>`).join("")+`</div>`:"";
   const allCampNames=[...new Set(DATA.campaignRows.filter(r=>acctOk(r)).map(r=>r.campaign_name))].sort();
@@ -416,8 +444,9 @@ function render(){
       <div class="stamp"><span class="dot">●</span> ${R.from} → ${R.to} · act. ${new Date(DATA.updatedAt).toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</div></header>
     ${acctBar}
     ${campSelect}
-    <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}<span class="pill ${view==="custom"?"on":""}" onclick="setView('custom')">Personalizado</span></div>
+    <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
     ${customBar}
+    ${cmpBar}
 
     <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${account==="Mayorista"?"leads y mensajes":"venta"} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
@@ -509,13 +538,20 @@ function render(){
   attachCharts();
 }
 
-function setView(k){
-  view=k;
-  if(k==="custom"&&!customFrom){const r=fixedRanges().find(x=>x.key==="mes");customFrom=r.from;customTo=r.to;}
-  render();
+function setView(k){view=k;render();}
+function setCompare(k){compare=k;render();}
+// Cambiar una fecha activa el modo personalizado solo. La otra punta se toma del
+// rango que estabas viendo, así no hay que setear las dos.
+function setCustomFrom(v){
+  const R=currentRange();
+  const to=(view==="custom"&&customTo)?customTo:R.to;
+  customFrom=v; customTo=(to<v)?v:to; view="custom"; render();
 }
-function setCustomFrom(v){customFrom=v;if(customTo&&customTo<v)customTo=v;render();}
-function setCustomTo(v){customTo=v;if(customFrom&&customFrom>v)customFrom=v;render();}
+function setCustomTo(v){
+  const R=currentRange();
+  const from=(view==="custom"&&customFrom)?customFrom:R.from;
+  customTo=v; customFrom=(from>v)?v:from; view="custom"; render();
+}
 function setAccount(k){account=k;campaign="Todas";render();}
 function setCampaign(k){campaign=k;render();}
 function sortByCamp(col){sortCamp.dir=sortCamp.col===col?-sortCamp.dir:-1;sortCamp.col=col;render();}
