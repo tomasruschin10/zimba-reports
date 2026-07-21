@@ -16,9 +16,10 @@
   header h1{font-size:clamp(22px,3vw,30px);font-weight:650;letter-spacing:-.02em}
   .stamp{font-size:13px;color:var(--muted);text-align:right}
   .stamp .dot{color:var(--pos)}
-  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0 2px}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:12px 0 2px}
   .bar .lbl{font-size:12px;font-weight:600;color:var(--faint);margin-right:2px;min-width:64px}
-  .pill{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;transition:all .12s}
+  .pill{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;transition:all .12s}
+  .sep{width:1px;height:20px;background:var(--border);margin:0 4px}
   .pill:hover{color:var(--ink);border-color:var(--muted)}
   .pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   select{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;max-width:280px}
@@ -127,6 +128,8 @@ function fixedRanges(today=new Date()){
   const pmsd=new Date(y,m-1,Math.min(dom,new Date(y,m,0).getDate()));
   return [
     {key:"hoy",label:"Hoy",from:ymd(today),to:ymd(today),pf:d(1),pt:d(1)},
+    {key:"ayer",label:"Ayer",from:d(1),to:d(1),pf:d(2),pt:d(2)},
+    {key:"u3",label:"Últimos 3",from:d(2),to:ymd(today),pf:d(5),pt:d(3)},
     {key:"u7",label:"Últimos 7",from:d(6),to:ymd(today),pf:d(13),pt:d(7)},
     {key:"u15",label:"Últimos 15",from:d(14),to:ymd(today),pf:d(29),pt:d(15)},
     {key:"mes",label:"Este mes",from:ymd(monthStart),to:ymd(today),pf:ymd(new Date(y,m-1,1)),pt:ymd(pmsd)},
@@ -313,25 +316,35 @@ function render(){
     return "Meta ads - "+k;
   };
   const hoyStr=ymd(new Date());
-  // Las fechas se ven siempre y muestran el rango activo: tocar una alcanza para
-  // pasar a personalizado (sin tener que apretar un botón antes).
-  const customBar=`<div class="bar"><span class="lbl">Fechas</span>`+
-    `<input type="date" class="dt" value="${R.from}" max="${hoyStr}" onchange="setCustomFrom(this.value)">`+
-    `<span style="color:var(--faint)">→</span>`+
-    `<input type="date" class="dt" value="${R.to}" max="${hoyStr}" onchange="setCustomTo(this.value)">`+
-    (view==="custom"?`<span style="font-size:12px;color:var(--accent);font-weight:600">rango personalizado</span>`:"")+
-    `</div>`;
-  const cmpOpts=[{k:"prev",l:"Período anterior"},{k:"month",l:"Mes anterior"},{k:"year",l:"Año anterior"},{k:"none",l:"Sin comparar"}];
-  const sinPrev=compare!=="none"&&prevRows.length===0;
-  const cmpBar=`<div class="bar"><span class="lbl">Comparar</span>`+
-    cmpOpts.map(o=>`<span class="pill ${compare===o.k?"on":""}" onclick="setCompare('${o.k}')">${o.l}</span>`).join("")+
-    (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos en ese período":"vs "+R.pf+" → "+R.pt}</span>`:"")+
-    `</div>`;
   const acctBar=DATA.accounts.length>1?`<div class="bar"><span class="lbl">Cuenta</span>`+
     [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${platLabel(o.k)}</span>`).join("")+`</div>`:"";
   const allCampNames=[...new Set(DATA.campaignRows.filter(r=>acctOk(r)).map(r=>r.campaign_name))].sort();
-  const campSelect=`<div class="bar"><span class="lbl">Campaña</span><select onchange="setCampaign(this.value)"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
-    allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select></div>`;
+  const cmpOpts=[{k:"prev",l:"vs período anterior"},{k:"month",l:"vs mes anterior"},{k:"year",l:"vs año anterior"},{k:"none",l:"sin comparar"}];
+  const sinPrev=compare!=="none"&&prevRows.length===0;
+  // Una sola fila con campaña + fechas + comparación (antes eran tres filas).
+  // Las fechas muestran siempre el rango activo: tocar una pasa a personalizado.
+  const filtrosBar=`<div class="bar"><span class="lbl">Filtros</span>`+
+    `<select onchange="setCampaign(this.value)" title="Campaña"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
+      allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select>`+
+    `<span class="sep"></span>`+
+    `<input type="date" class="dt" value="${R.from}" max="${hoyStr}" onchange="setCustomFrom(this.value)">`+
+    `<span style="color:var(--faint)">→</span>`+
+    `<input type="date" class="dt" value="${R.to}" max="${hoyStr}" onchange="setCustomTo(this.value)">`+
+    (view==="custom"?`<span style="font-size:12px;color:var(--accent);font-weight:600">personalizado</span>`:"")+
+    `<span class="sep"></span>`+
+    `<select onchange="setCompare(this.value)" title="Comparación">`+
+      cmpOpts.map(o=>`<option value="${o.k}" ${compare===o.k?"selected":""}>${o.l}</option>`).join("")+`</select>`+
+    (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos":R.pf+" → "+R.pt}</span>`:"")+
+    `</div>`;
+
+  // Sello del header: fechas en castellano y "actualizado hoy/ayer a las HH:MM".
+  const fFecha=(s)=>new Date(s+"T00:00:00Z").toLocaleDateString("es-AR",{day:"numeric",month:"short",timeZone:"UTC"});
+  const cuandoAct=(()=>{
+    const u=new Date(DATA.updatedAt), h=new Date(), a=new Date(); a.setDate(a.getDate()-1);
+    const igual=(x,y)=>x.toDateString()===y.toDateString();
+    const dia=igual(u,h)?"hoy":igual(u,a)?"ayer":"el "+u.toLocaleDateString("es-AR",{day:"numeric",month:"short"});
+    return `${dia} a las ${u.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`;
+  })();
 
   const now=new Date();
   const curName=cap(now.toLocaleString("es-AR",{month:"long"}));
@@ -441,12 +454,10 @@ function render(){
 
   document.getElementById("app").innerHTML=`
     <header><h1>${DATA.client} · Reporte de campañas</h1>
-      <div class="stamp"><span class="dot">●</span> ${R.from} → ${R.to} · act. ${new Date(DATA.updatedAt).toLocaleString("es-AR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</div></header>
+      <div class="stamp"><span class="dot">●</span> Datos del ${fFecha(R.from)} al ${fFecha(R.to)}<br><span style="color:var(--faint)">Actualizado ${cuandoAct}</span></div></header>
     ${acctBar}
-    ${campSelect}
     <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
-    ${customBar}
-    ${cmpBar}
+    ${filtrosBar}
 
     <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${account==="Mayorista"?"leads y mensajes":"venta"} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
@@ -533,7 +544,7 @@ function render(){
     </table></div>`:""}
     `:""}
 
-    <footer>Zimba Digital · se actualiza 3 veces al día</footer>`;
+    <footer>Zimba Digital · se actualiza cada 2 horas, de 8 a 24 h</footer>`;
 
   attachCharts();
 }
