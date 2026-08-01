@@ -30,9 +30,9 @@ function fetchWindow() {
 }
 
 async function buildClient(client) {
-  // Tipo de cambio del cliente (clients.json → usdRate). Se usa para pasar a ARS
-  // las fuentes que reportan en USD (TikTok), y se guarda en el JSON para que el
-  // dashboard convierta con EXACTAMENTE el mismo número.
+  // Tipo de cambio por defecto del cliente (clients.json → usdRate). NO se usa
+  // para convertir en el build; se guarda en el JSON como valor inicial del
+  // campito del dashboard, que es donde ocurre toda la conversión.
   const usdRate = Number(client.usdRate) > 0 ? Number(client.usdRate) : 1000;
   const meta = client.sources.meta;
   const { since, until } = fetchWindow();
@@ -102,16 +102,17 @@ async function buildClient(client) {
     const label = tk.label || "TikTok";
     try {
       const camps = await fetchTiktokCampaignDaily({ advertiserId: tk.advertiserId }, since, until);
-      // TikTok reporta importes en la moneda de la cuenta (USD). Los pasamos a
-      // ARS para que sumen bien con Meta/Tienda Nube (que ya vienen en pesos).
-      for (const r of camps) campaignRows.push({ account: label, ...r, spend: r.spend * usdRate, revenue: r.revenue * usdRate });
+      // TikTok reporta importes en la moneda de la cuenta (USD). NO convertimos acá:
+      // guardamos crudo + marca de moneda (cur) y el dashboard convierte según lo
+      // que estés viendo, con el tipo de cambio del campito.
+      for (const r of camps) campaignRows.push({ account: label, cur: "USD", ...r });
       accounts.push(label);
       accountModes[label] = tk.mode || "sales";
       console.log(`  ${client.slug}/${label}: ${camps.length} campaña (TikTok Ads)`);
       // Nivel anuncio (creativos). Best-effort: si falla, quedan las campañas.
       try {
         const { rows: tkAds, thumbnails: tkThumbs } = await fetchTiktokAdDaily({ advertiserId: tk.advertiserId }, since, until);
-        for (const r of tkAds) adRows.push({ account: label, ...r, spend: r.spend * usdRate, revenue: r.revenue * usdRate });
+        for (const r of tkAds) adRows.push({ account: label, cur: "USD", ...r });
         thumbnails = { ...thumbnails, ...tkThumbs };
         console.log(`  ${client.slug}/${label}: ${tkAds.length} ad (TikTok creativos)`);
       } catch (e) { console.warn(`  TikTok creativos ${label}: ${e.message}`); }
