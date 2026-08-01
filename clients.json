@@ -37,8 +37,8 @@
         "mode": "sales"
       },
       "tiendanube": {
-        "enabled": false,
-        "storeId": "PONER_STORE_ID_CHILLOUT",
+        "enabled": true,
+        "storeId": "5451862",
         "tokenEnv": "TIENDANUBE_TOKEN_CHILLOUT"
       }
     }
