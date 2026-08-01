@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { webcrypto as crypto } from "node:crypto";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
-import { fetchTiktokCampaignDaily } from "./fetchers/tiktok.js";
+import { fetchTiktokCampaignDaily, fetchTiktokAdDaily } from "./fetchers/tiktok.js";
 import { fetchPinterestCampaignDaily } from "./fetchers/pinterest.js";
 import { fetchTiendanube } from "./fetchers/tiendanube.js";
 
@@ -102,6 +102,13 @@ async function buildClient(client) {
       accounts.push(label);
       accountModes[label] = tk.mode || "sales";
       console.log(`  ${client.slug}/${label}: ${camps.length} campaña (TikTok Ads)`);
+      // Nivel anuncio (creativos). Best-effort: si falla, quedan las campañas.
+      try {
+        const { rows: tkAds, thumbnails: tkThumbs } = await fetchTiktokAdDaily({ advertiserId: tk.advertiserId }, since, until);
+        for (const r of tkAds) adRows.push({ account: label, ...r });
+        thumbnails = { ...thumbnails, ...tkThumbs };
+        console.log(`  ${client.slug}/${label}: ${tkAds.length} ad (TikTok creativos)`);
+      } catch (e) { console.warn(`  TikTok creativos ${label}: ${e.message}`); }
     } catch (e) {
       console.warn(`  TikTok Ads ${label}: ${e.message}`);
     }
