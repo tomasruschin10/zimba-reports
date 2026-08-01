@@ -3,6 +3,7 @@
     "slug": "chillout",
     "name": "Chill Out",
     "objetivoMensual": 20000000,
+    "usdRate": 1350,
     "sources": {
       "meta": {
         "accounts": [
@@ -47,6 +48,7 @@
     "slug": "bacan",
     "name": "Bacan by Mantra",
     "objetivoMensual": 8000000,
+    "usdRate": 1350,
     "sources": {
       "meta": {
         "accounts": [
