@@ -51,6 +51,7 @@
   .tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .tblcard table{margin:0}.tblcard thead th,.tblcard tbody td{padding-left:16px;padding-right:16px}
   .empty{color:var(--muted);padding:36px 0;font-size:15px}
+  .aviso{font-size:12px;color:var(--muted);line-height:1.55;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--faint);border-radius:8px;padding:11px 14px}
   .tnhead{margin:44px 0 0;padding-top:26px;border-top:2px solid var(--border)}
   .cruce{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:14px}
   .cruce-t{font-size:14px;font-weight:650;margin-bottom:14px}
@@ -80,8 +81,11 @@
 <body>
 <div class="wrap" id="app"><div class="empty">Cargando…</div></div>
 <script>
-const money=(n)=>"$"+(Math.round(n)||0).toLocaleString("es-AR");
-const money2=(n)=>"$"+(n||0).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
+// fx(): convierte un monto en pesos a la moneda activa. Los ratios (ROAS, CTR,
+// %, conversion rate) NO deben pasar por acá — no cambian con la moneda.
+const fx=(n)=>currency==="USD"&&usdRate>0?(n||0)/usdRate:(n||0);
+const money=(n)=>"$"+(Math.round(fx(n))||0).toLocaleString("es-AR");
+const money2=(n)=>"$"+fx(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const dec=(n,d=2)=>(n||0).toFixed(d);
 const num=(n)=>(Math.round(n)||0).toLocaleString("es-AR");
 const roasCls=(r)=>r>=3?"good":r>=1.5?"mid":"low";
@@ -93,6 +97,10 @@ let DATA=null, view="mes", account="Todas", campaign="Todas";
 let sortCamp={col:"spend",dir:-1}, sortCre={col:"roas",dir:-1};
 let customFrom=null, customTo=null; // rango personalizado (view==="custom")
 let compare="prev"; // prev | month | year | none
+// Moneda: ARS por defecto. El rate default sale de clients.json (data.usdRate);
+// si el usuario lo cambia en pantalla, se guarda en SU navegador (localStorage).
+let currency="ARS"; // ARS | USD
+let usdRate=1;      // se setea en el arranque
 
 // modo de la cuenta activa: "sales" (venta) o "leads" (leads/mensajes).
 // En "Todas" mostramos solo cuentas de venta (por ahora solo Minorista).
@@ -335,6 +343,9 @@ function render(){
     `<select onchange="setCompare(this.value)" title="Comparación">`+
       cmpOpts.map(o=>`<option value="${o.k}" ${compare===o.k?"selected":""}>${o.l}</option>`).join("")+`</select>`+
     (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos":R.pf+" → "+R.pt}</span>`:"")+
+    `<span class="sep"></span>`+
+    `<select onchange="setCurrency(this.value)" title="Moneda"><option value="ARS" ${currency==="ARS"?"selected":""}>ARS $</option><option value="USD" ${currency==="USD"?"selected":""}>USD $</option></select>`+
+    (currency==="USD"?`<span style="font-size:12px;color:var(--faint)">1 USD =</span><input type="number" class="dt" style="width:88px" value="${usdRate}" min="1" onchange="setRate(this.value)"><span style="font-size:12px;color:var(--faint)">ARS</span>`:"")+
     `</div>`;
 
   // Sello del header: fechas en castellano y "actualizado hoy/ayer a las HH:MM".
@@ -459,6 +470,7 @@ function render(){
     <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
     ${filtrosBar}
 
+    ${currency==="USD"?`<div class="aviso" style="margin-top:14px">Valores convertidos a <b>USD</b> a un tipo de cambio de <b>$${num(usdRate)}</b> (editable arriba). Es una conversión de referencia con la cotización de hoy: montos de fechas pasadas no reflejan el dólar de ese día.</div>`:""}
     <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${account==="Mayorista"?"leads y mensajes":"venta"} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
 
@@ -551,6 +563,8 @@ function render(){
 
 function setView(k){view=k;render();}
 function setCompare(k){compare=k;render();}
+function setCurrency(k){currency=k;render();}
+function setRate(v){const n=Number(v);if(n>0){usdRate=n;localStorage.setItem("zimba_usd_"+slug,String(n));}render();}
 // Cambiar una fecha activa el modo personalizado solo. La otra punta se toma del
 // rango que estabas viendo, así no hay que setear las dos.
 function setCustomFrom(v){
@@ -570,7 +584,14 @@ function sortByCre(col){sortCre.dir=sortCre.col===col?-sortCre.dir:-1;sortCre.co
 
 fetch(`./data/${slug}.json`)
   .then(r=>{if(!r.ok)throw new Error();return r.json();})
-  .then(d=>{DATA=d;render();})
+  .then(d=>{
+    DATA=d;
+    // rate por defecto del cliente (clients.json → usdRate). Si el navegador ya
+    // guardó uno para este cliente, ese pisa al default.
+    const guardado=Number(localStorage.getItem("zimba_usd_"+slug));
+    usdRate=guardado>0?guardado:(Number(DATA.usdRate)>0?Number(DATA.usdRate):1000);
+    render();
+  })
   .catch(()=>{document.getElementById("app").innerHTML='<div class="empty">Este reporte todavía no tiene datos.</div>';});
 </script>
 </body>
