@@ -345,7 +345,7 @@ function render(){
     (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos":R.pf+" → "+R.pt}</span>`:"")+
     `<span class="sep"></span>`+
     `<select onchange="setCurrency(this.value)" title="Moneda"><option value="ARS" ${currency==="ARS"?"selected":""}>ARS $</option><option value="USD" ${currency==="USD"?"selected":""}>USD $</option></select>`+
-    (currency==="USD"?`<span style="font-size:12px;color:var(--faint)">1 USD =</span><input type="number" class="dt" style="width:88px" value="${usdRate}" min="1" onchange="setRate(this.value)"><span style="font-size:12px;color:var(--faint)">ARS</span>`:"")+
+    (currency==="USD"?`<span style="font-size:12px;color:var(--faint)">1 USD =</span><input type="number" id="usdRateInput" class="dt" style="width:88px" value="${usdRate}" min="1" oninput="setRate(this.value)"><span style="font-size:12px;color:var(--faint)">ARS</span>`:"")+
     `</div>`;
 
   // Sello del header: fechas en castellano y "actualizado hoy/ayer a las HH:MM".
@@ -564,7 +564,14 @@ function render(){
 function setView(k){view=k;render();}
 function setCompare(k){compare=k;render();}
 function setCurrency(k){currency=k;render();}
-function setRate(v){const n=Number(v);if(n>0){usdRate=n;localStorage.setItem("zimba_usd_"+slug,String(n));}render();}
+function setRate(v){
+  const n=Number(v);
+  if(n>0){ usdRate=n; localStorage.setItem("zimba_usd_"+slug,String(n)); }
+  else { usdRate=1; }
+  // Re-render diferido: deja terminar de tipear sin perder el foco del campo.
+  clearTimeout(window.__rateT);
+  window.__rateT=setTimeout(()=>{ render(); const el=document.getElementById("usdRateInput"); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length);} }, 350);
+}
 // Cambiar una fecha activa el modo personalizado solo. La otra punta se toma del
 // rango que estabas viendo, así no hay que setear las dos.
 function setCustomFrom(v){
