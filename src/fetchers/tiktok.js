@@ -160,6 +160,7 @@ export async function fetchTiktokAdDaily(config, since, until) {
       const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
       const body = await res.json();
       if (body.code !== 0) { console.warn(`    TikTok /ad/get: ${body.message}`); break; }
+      if (i === 0 && (body.data?.list || []).length) console.log(`    [diag] /ad/get primer ad keys: ${JSON.stringify(Object.keys(body.data.list[0]))}; muestra: ${JSON.stringify(body.data.list[0]).slice(0,300)}`);
       for (const ad of body.data?.list || []) {
         const aid = String(ad.ad_id);
         if (Array.isArray(ad.image_ids) && ad.image_ids.length) { adImg[aid] = ad.image_ids[0]; imgIds.add(ad.image_ids[0]); }
@@ -167,6 +168,7 @@ export async function fetchTiktokAdDaily(config, since, until) {
       }
     }
 
+    console.log(`    [diag] ads con image_ids: ${Object.keys(adImg).length}, con video_id: ${Object.keys(adVid).length}`);
     // Paso 2a: resolver imágenes.
     const imgUrl = {};
     const imgArr = [...imgIds];
@@ -177,6 +179,7 @@ export async function fetchTiktokAdDaily(config, since, until) {
       url.searchParams.set("image_ids", JSON.stringify(chunk));
       const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
       const body = await res.json();
+      if (i === 0) console.log(`    [diag] image/ad/info code=${body.code} list=${(body.data?.list||[]).length} sample=${JSON.stringify((body.data?.list||[])[0]||{}).slice(0,200)}`);
       if (body.code === 0) for (const it of body.data?.list || []) if (it.image_id && it.image_url) imgUrl[it.image_id] = it.image_url;
       else console.warn(`    TikTok image info: ${body.message}`);
     }
@@ -191,6 +194,7 @@ export async function fetchTiktokAdDaily(config, since, until) {
       url.searchParams.set("video_ids", JSON.stringify(chunk));
       const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
       const body = await res.json();
+      if (i === 0) console.log(`    [diag] video/ad/info code=${body.code} list=${(body.data?.list||[]).length} sample=${JSON.stringify((body.data?.list||[])[0]||{}).slice(0,260)}`);
       if (body.code === 0) for (const it of body.data?.list || []) if (it.id && (it.poster_url || it.video_cover_url)) vidUrl[it.id] = it.poster_url || it.video_cover_url;
       else console.warn(`    TikTok video info: ${body.message}`);
     }
