@@ -83,7 +83,17 @@
 <script>
 // fx(): convierte un monto en pesos a la moneda activa. Los ratios (ROAS, CTR,
 // %, conversion rate) NO deben pasar por acá — no cambian con la moneda.
-const fx=(n)=>currency==="USD"&&usdRate>0?(n||0)/usdRate:(n||0);
+// La conversión de moneda ocurre al SUMAR las filas (ver toView), no acá.
+// Para cuando llega al formateo, el monto ya está en la moneda que se ve.
+const fx=(n)=>(n||0);
+// Lleva un monto desde su moneda de origen (cur: "ARS" por defecto, "USD" en TikTok)
+// a la moneda que estás viendo. Viendo ARS: USD→×rate. Viendo USD: ARS→÷rate.
+function toView(n, cur){
+  n = n || 0;
+  const isUSD = cur === "USD";
+  if(currency === "USD") return isUSD ? n : (usdRate>0 ? n/usdRate : n);
+  return isUSD ? n*usdRate : n; // viendo ARS
+}
 const money=(n)=>"$"+(Math.round(fx(n))||0).toLocaleString("es-AR");
 const money2=(n)=>"$"+fx(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const dec=(n,d=2)=>(n||0).toFixed(d);
@@ -117,7 +127,7 @@ function derive(a){
 }
 function sumRows(rows){
   const a={spend:0,revenue:0,purchases:0,clicks:0,impressions:0,leads:0,messages:0};
-  for(const r of rows){a.spend+=r.spend;a.revenue+=r.revenue;a.purchases+=r.purchases;a.clicks+=r.clicks;a.impressions+=r.impressions;a.leads+=(r.leads||0);a.messages+=(r.messages||0);}
+  for(const r of rows){a.spend+=toView(r.spend,r.cur);a.revenue+=toView(r.revenue,r.cur);a.purchases+=r.purchases;a.clicks+=r.clicks;a.impressions+=r.impressions;a.leads+=(r.leads||0);a.messages+=(r.messages||0);}
   return derive(a);
 }
 const inRange=(d,f,t)=>d>=f&&d<=t;
@@ -176,7 +186,7 @@ function currentRange(){
 function groupBy(rows,key){const m=new Map();for(const r of rows){const k=r[key]||"—";if(!m.has(k))m.set(k,[]);m.get(k).push(r);}return m;}
 function seriesByDay(rows,valueFn){
   const m=new Map();
-  for(const r of rows){if(!m.has(r.date))m.set(r.date,{spend:0,revenue:0,purchases:0,leads:0,messages:0});const o=m.get(r.date);o.spend+=r.spend;o.revenue+=r.revenue;o.purchases+=r.purchases;o.leads+=(r.leads||0);o.messages+=(r.messages||0);}
+  for(const r of rows){if(!m.has(r.date))m.set(r.date,{spend:0,revenue:0,purchases:0,leads:0,messages:0});const o=m.get(r.date);o.spend+=toView(r.spend,r.cur);o.revenue+=toView(r.revenue,r.cur);o.purchases+=r.purchases;o.leads+=(r.leads||0);o.messages+=(r.messages||0);}
   return [...m.entries()].map(([date,o])=>({date,value:valueFn(o)})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 
@@ -445,14 +455,14 @@ function render(){
   let tnSum=null,tnLost=null,tnPrev=null,tnPayAgg=[];
   if(hasTN){
     const inR=(d)=>inRange(d,R.from,R.to), inP=(d)=>inRange(d,R.pf,R.pt);
-    const sum=(rows,f)=>rows.filter(r=>f(r.date)).reduce((a,r)=>({orders:a.orders+r.orders,revenue:a.revenue+r.revenue,units:a.units+(r.units||0)}),{orders:0,revenue:0,units:0});
+    const sum=(rows,f)=>rows.filter(r=>f(r.date)).reduce((a,r)=>({orders:a.orders+r.orders,revenue:a.revenue+toView(r.revenue,"ARS"),units:a.units+(r.units||0)}),{orders:0,revenue:0,units:0});
     tnSum=sum(TN.daily,inR); tnPrev=sum(TN.daily,inP); tnLost=sum(TN.lost||[],inR);
     tnSum.ticket=tnSum.orders>0?tnSum.revenue/tnSum.orders:0;
     tnPrev.ticket=tnPrev.orders>0?tnPrev.revenue/tnPrev.orders:0;
     tnPayAgg=(()=>{const m={};for(const r of (TN.payments||[]).filter(r=>inR(r.date))){if(!m[r.metodo])m[r.metodo]={metodo:r.metodo,pagadas:0,perdidas:0,revPagadas:0,revPerdidas:0};m[r.metodo].pagadas+=r.pagadas;m[r.metodo].perdidas+=r.perdidas;m[r.metodo].revPagadas+=r.revPagadas;m[r.metodo].revPerdidas+=r.revPerdidas;}return Object.values(m).sort((a,b)=>(b.pagadas+b.perdidas)-(a.pagadas+a.perdidas));})();
   }
   // Cruce: lo que los ads dicen que generaron vs lo que la tienda realmente facturó.
-  const adsRev=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.revenue;}return s;})();
+  const adsRev=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=toView(r.revenue,r.cur);}return s;})();
   const adsPur=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.purchases;}return s;})();
   const cobertura=hasTN&&tnSum.revenue>0?(adsRev/tnSum.revenue)*100:0;
 
