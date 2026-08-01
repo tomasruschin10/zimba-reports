@@ -174,12 +174,12 @@ export async function fetchTiktokAdDaily(config, since, until) {
     const imgArr = [...imgIds];
     for (let i = 0; i < imgArr.length; i += 100) {
       const chunk = imgArr.slice(i, i + 100);
-      const url = new URL(`${BASE}/${version}/file/image/ad/info/`);
-      url.searchParams.set("advertiser_id", advertiserId);
-      url.searchParams.set("image_ids", JSON.stringify(chunk));
-      const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
+      // La URL se arma a mano: los image_ids traen "/" y caracteres que
+      // URLSearchParams no codifica como TikTok espera (causa error 40001).
+      const qs = `advertiser_id=${encodeURIComponent(advertiserId)}&image_ids=${encodeURIComponent(JSON.stringify(chunk))}`;
+      const res = await fetch(`${BASE}/${version}/file/image/ad/info/?${qs}`, { headers: { "Access-Token": token } });
       const body = await res.json();
-      if (i === 0) console.log(`    [diag] image/ad/info code=${body.code} list=${(body.data?.list||[]).length} sample=${JSON.stringify((body.data?.list||[])[0]||{}).slice(0,200)}`);
+      if (i === 0) console.log(`    [diag] image/ad/info code=${body.code} msg=${body.message} list=${(body.data?.list||[]).length} sample=${JSON.stringify((body.data?.list||[])[0]||{}).slice(0,200)}`);
       if (body.code === 0) for (const it of body.data?.list || []) if (it.image_id && it.image_url) imgUrl[it.image_id] = it.image_url;
       else console.warn(`    TikTok image info: ${body.message}`);
     }
@@ -189,12 +189,10 @@ export async function fetchTiktokAdDaily(config, since, until) {
     const vidArr = [...vidIds];
     for (let i = 0; i < vidArr.length; i += 60) { // máx 60 por request
       const chunk = vidArr.slice(i, i + 60);
-      const url = new URL(`${BASE}/${version}/file/video/ad/info/`);
-      url.searchParams.set("advertiser_id", advertiserId);
-      url.searchParams.set("video_ids", JSON.stringify(chunk));
-      const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
+      const qs = `advertiser_id=${encodeURIComponent(advertiserId)}&video_ids=${encodeURIComponent(JSON.stringify(chunk))}`;
+      const res = await fetch(`${BASE}/${version}/file/video/ad/info/?${qs}`, { headers: { "Access-Token": token } });
       const body = await res.json();
-      if (i === 0) console.log(`    [diag] video/ad/info code=${body.code} list=${(body.data?.list||[]).length} sample=${JSON.stringify((body.data?.list||[])[0]||{}).slice(0,260)}`);
+      if (i === 0) console.log(`    [diag] video/ad/info code=${body.code} msg=${body.message} list=${(body.data?.list||[]).length} sample=${JSON.stringify((body.data?.list||[])[0]||{}).slice(0,260)}`);
       if (body.code === 0) for (const it of body.data?.list || []) if (it.id && (it.poster_url || it.video_cover_url)) vidUrl[it.id] = it.poster_url || it.video_cover_url;
       else console.warn(`    TikTok video info: ${body.message}`);
     }
