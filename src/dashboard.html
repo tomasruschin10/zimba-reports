@@ -566,11 +566,11 @@ function setCompare(k){compare=k;render();}
 function setCurrency(k){currency=k;render();}
 function setRate(v){
   const n=Number(v);
-  if(n>0){ usdRate=n; localStorage.setItem("zimba_usd_"+slug,String(n)); }
-  else { usdRate=1; }
-  // Re-render diferido: deja terminar de tipear sin perder el foco del campo.
-  clearTimeout(window.__rateT);
-  window.__rateT=setTimeout(()=>{ render(); const el=document.getElementById("usdRateInput"); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length);} }, 350);
+  usdRate=(n>0)?n:1;
+  if(n>0) localStorage.setItem("zimba_usd_"+slug,String(n));
+  render();
+  // devolver el foco al campo tras el re-render (sin timers frágiles)
+  requestAnimationFrame(()=>{const el=document.getElementById("usdRateInput");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}});
 }
 // Cambiar una fecha activa el modo personalizado solo. La otra punta se toma del
 // rango que estabas viendo, así no hay que setear las dos.
