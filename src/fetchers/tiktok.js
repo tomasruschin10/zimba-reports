@@ -133,34 +133,78 @@ export async function fetchTiktokAdDaily(config, since, until) {
   await forEachWindow(ctx, since, until, (a, b) =>
     fetchReportInto(rows, ctx, { dataLevel: "AUCTION_AD", dimensions: ["stat_time_day", "ad_id"], metrics: AD_METRICS, since: a, until: b }, push));
 
-  // Thumbnails (mejor-esfuerzo). El /ad/get/ devuelve image_mode + una URL de
-  // preview por ad. Lo mapeamos por ad_name para que el dashboard lo use igual
-  // que los de Meta. Si algo falla, seguimos sin imágenes.
+  // Thumbnails (mejor-esfuerzo, 2 pasos):
+  //   1) /ad/get/ → por cada ad, sus image_ids y su video_id (campos válidos).
+  //   2) resolver esos IDs a URL: imágenes vía /file/image/ad/info/ (image_url),
+  //      videos vía /file/video/ad/info/ (poster_url = miniatura del video).
+  // La mayoría de los ads de TikTok son video, así que el poster suele ser la foto.
+  // Si algo falla, seguimos sin imágenes.
   const thumbnails = {};
   try {
     const nameById = {};
     for (const r of rows) if (r.ad_id) nameById[r.ad_id] = r.ad_name;
+
+    // Paso 1: juntar image_ids / video_id por ad.
+    const imgIds = new Set();     // image_id → luego a URL
+    const vidIds = new Set();     // video_id → luego a poster
+    const adImg = {};             // ad_id → primer image_id
+    const adVid = {};             // ad_id → video_id
     const ids = [...adIds];
     for (let i = 0; i < ids.length; i += 100) {
       const chunk = ids.slice(i, i + 100);
       const url = new URL(`${BASE}/${version}/ad/get/`);
       url.searchParams.set("advertiser_id", advertiserId);
       url.searchParams.set("filtering", JSON.stringify({ ad_ids: chunk }));
-      url.searchParams.set("fields", JSON.stringify(["ad_id", "ad_name", "image_urls", "video_id"]));
+      url.searchParams.set("fields", JSON.stringify(["ad_id", "ad_name", "image_ids", "video_id"]));
       url.searchParams.set("page_size", "100");
       const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
       const body = await res.json();
-      if (body.code !== 0) { console.warn(`    TikTok thumbnails: ${body.message}`); break; }
+      if (body.code !== 0) { console.warn(`    TikTok /ad/get: ${body.message}`); break; }
       for (const ad of body.data?.list || []) {
-        const name = nameById[String(ad.ad_id)] || ad.ad_name;
-        const img = Array.isArray(ad.image_urls) && ad.image_urls.length ? ad.image_urls[0] : null;
-        if (name && img) thumbnails[name] = img;
+        const aid = String(ad.ad_id);
+        if (Array.isArray(ad.image_ids) && ad.image_ids.length) { adImg[aid] = ad.image_ids[0]; imgIds.add(ad.image_ids[0]); }
+        if (ad.video_id) { adVid[aid] = ad.video_id; vidIds.add(ad.video_id); }
       }
+    }
+
+    // Paso 2a: resolver imágenes.
+    const imgUrl = {};
+    const imgArr = [...imgIds];
+    for (let i = 0; i < imgArr.length; i += 100) {
+      const chunk = imgArr.slice(i, i + 100);
+      const url = new URL(`${BASE}/${version}/file/image/ad/info/`);
+      url.searchParams.set("advertiser_id", advertiserId);
+      url.searchParams.set("image_ids", JSON.stringify(chunk));
+      const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
+      const body = await res.json();
+      if (body.code === 0) for (const it of body.data?.list || []) if (it.image_id && it.image_url) imgUrl[it.image_id] = it.image_url;
+      else console.warn(`    TikTok image info: ${body.message}`);
+    }
+
+    // Paso 2b: resolver videos (poster_url = miniatura).
+    const vidUrl = {};
+    const vidArr = [...vidIds];
+    for (let i = 0; i < vidArr.length; i += 60) { // máx 60 por request
+      const chunk = vidArr.slice(i, i + 60);
+      const url = new URL(`${BASE}/${version}/file/video/ad/info/`);
+      url.searchParams.set("advertiser_id", advertiserId);
+      url.searchParams.set("video_ids", JSON.stringify(chunk));
+      const res = await fetch(url.toString(), { headers: { "Access-Token": token } });
+      const body = await res.json();
+      if (body.code === 0) for (const it of body.data?.list || []) if (it.id && (it.poster_url || it.video_cover_url)) vidUrl[it.id] = it.poster_url || it.video_cover_url;
+      else console.warn(`    TikTok video info: ${body.message}`);
+    }
+
+    // Armar el mapa final por ad_name (que es como lo usa el dashboard).
+    for (const aid of Object.keys(nameById)) {
+      const name = nameById[aid];
+      const thumb = (adImg[aid] && imgUrl[adImg[aid]]) || (adVid[aid] && vidUrl[adVid[aid]]) || null;
+      if (name && thumb) thumbnails[name] = thumb;
     }
   } catch (e) {
     console.warn(`    TikTok thumbnails: ${e.message}`);
   }
-  console.log(`    TikTok creativos: ${rows.length} filas, ${Object.keys(thumbnails).length} con miniatura`);
+    console.log(`    TikTok creativos: ${rows.length} filas, ${Object.keys(thumbnails).length} con miniatura`);
 
   return { rows, thumbnails };
 }
