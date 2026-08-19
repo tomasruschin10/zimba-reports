@@ -19,39 +19,6 @@ const TRANSIENT = new Set([1, 2, 4, 17, 32, 613]);
 const BACKOFF_MS = [3000, 8000, 20000, 45000]; // 4 reintentos, esperas crecientes
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ── Ventanas de tiempo ──────────────────────────────────────────────────────
-// Los reintentos solos no alcanzan: si Meta corta la consulta por PESADA (code 1
-// o 2 en cuentas grandes), reintentar manda exactamente la misma consulta y
-// vuelve a fallar. La cuenta Minorista de Chill Out (~621 campañas / 2377 ads)
-// cruza ese umbral; Bacan (206 / 973) no. Por eso siempre cae la misma.
-// La salida es pedir menos por vez: partimos el rango en ventanas y, si una
-// ventana igual falla, la partimos al medio y reintentamos cada mitad, hasta
-// llegar a un solo día. Así se adapta sola al tamaño de cada cuenta.
-const VENTANA_CAMPAÑA = 30; // días por request a nivel campaña / demo / device
-const VENTANA_AD = 14;      // nivel ad es mucho más pesado: ventanas más chicas
-
-const aFecha = (iso) => new Date(`${iso}T00:00:00Z`);
-const aISO = (d) => d.toISOString().slice(0, 10);
-function sumarDias(iso, n) {
-  const d = aFecha(iso);
-  d.setUTCDate(d.getUTCDate() + n);
-  return aISO(d);
-}
-function diasEntre(desde, hasta) {
-  return Math.round((aFecha(hasta) - aFecha(desde)) / 86400000);
-}
-// Corta [since, until] en tramos de a lo sumo `dias`.
-function partirRango(since, until, dias) {
-  const tramos = [];
-  let ini = since;
-  while (diasEntre(ini, until) >= 0) {
-    const fin = sumarDias(ini, dias - 1);
-    tramos.push([ini, diasEntre(fin, until) > 0 ? until : fin]);
-    ini = sumarDias(fin, 1);
-  }
-  return tramos;
-}
-
 // Pide una URL y devuelve el JSON. Reintenta ante errores transitorios de Meta
 // o caídas de red. Los errores permanentes (token inválido, permisos) explotan
 // en el acto: reintentarlos no sirve de nada.
@@ -109,55 +76,16 @@ async function fetchAll(url) {
   }
   return out;
 }
-
-// Trae una ventana. Si falla igual (después de los reintentos), la parte al
-// medio y reintenta cada mitad. Corta cuando la ventana ya es de un solo día:
-// si un día suelto no entra, el problema no es el tamaño y hay que enterarse.
-async function traerVentana(armarUrl, since, until) {
-  try {
-    return await fetchAll(armarUrl(since, until));
-  } catch (e) {
-    if (since === until) throw e;
-    const mitad = sumarDias(since, Math.floor(diasEntre(since, until) / 2));
-    console.warn(`    Meta: ventana ${since}→${until} no entró (${e.message}); la parto en dos`);
-    const a = await traerVentana(armarUrl, since, mitad);
-    const b = await traerVentana(armarUrl, sumarDias(mitad, 1), until);
-    return [...a, ...b];
-  }
-}
-
-// Recorre todo el rango en ventanas y junta las filas. Como time_increment=1 y
-// las ventanas no se pisan, concatenar alcanza: no hay filas duplicadas.
-async function traerRango(armarUrl, since, until, dias) {
-  const filas = [];
-  for (const [ini, fin] of partirRango(since, until, dias)) {
-    filas.push(...await traerVentana(armarUrl, ini, fin));
-  }
-  return filas;
-}
-
-// Arma la URL de insights con los parámetros comunes.
-function urlInsights({ token, version, adAccountId, level, fields, breakdowns }) {
-  return (since, until) => {
-    const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
-    url.searchParams.set("access_token", token);
-    url.searchParams.set("level", level);
-    url.searchParams.set("time_increment", "1");
-    url.searchParams.set("time_range", JSON.stringify({ since, until }));
-    url.searchParams.set("fields", fields);
-    if (breakdowns) url.searchParams.set("breakdowns", breakdowns);
-    url.searchParams.set("limit", "500");
-    return url.toString();
-  };
-}
-
 export async function fetchMetaCampaignDaily({ adAccountId }, since, until) {
   const { token, version } = base(adAccountId);
-  const armarUrl = urlInsights({
-    token, version, adAccountId, level: "campaign",
-    fields: "campaign_name,spend,impressions,clicks,actions,action_values",
-  });
-  const rows = await traerRango(armarUrl, since, until, VENTANA_CAMPAÑA);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("level", "campaign");
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("time_range", JSON.stringify({ since, until }));
+  url.searchParams.set("fields", "campaign_name,spend,impressions,clicks,actions,action_values");
+  url.searchParams.set("limit", "500");
+  const rows = await fetchAll(url.toString());
   return rows.map((r) => ({
     date: r.date_start, campaign_name: r.campaign_name,
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
@@ -165,14 +93,16 @@ export async function fetchMetaCampaignDaily({ adAccountId }, since, until) {
     leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
   }));
 }
-
 export async function fetchMetaAdDaily({ adAccountId }, since, until) {
   const { token, version } = base(adAccountId);
-  const armarUrl = urlInsights({
-    token, version, adAccountId, level: "ad",
-    fields: "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
-  });
-  const rows = await traerRango(armarUrl, since, until, VENTANA_AD);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("level", "ad");
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("time_range", JSON.stringify({ since, until }));
+  url.searchParams.set("fields", "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values");
+  url.searchParams.set("limit", "500");
+  const rows = await fetchAll(url.toString());
   return rows.map((r) => ({
     date: r.date_start, ad_name: r.ad_name, adset_name: r.adset_name || "", campaign_name: r.campaign_name || "",
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
@@ -184,11 +114,15 @@ export async function fetchMetaAdDaily({ adAccountId }, since, until) {
 // Demografía: breakdown age,gender (a nivel cuenta, agregado del período).
 export async function fetchMetaDemographics({ adAccountId }, since, until) {
   const { token, version } = base(adAccountId);
-  const armarUrl = urlInsights({
-    token, version, adAccountId, level: "account", breakdowns: "age,gender",
-    fields: "impressions,clicks,spend,actions,action_values",
-  });
-  const rows = await traerRango(armarUrl, since, until, VENTANA_CAMPAÑA);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("level", "account");
+  url.searchParams.set("breakdowns", "age,gender");
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("time_range", JSON.stringify({ since, until }));
+  url.searchParams.set("fields", "impressions,clicks,spend,actions,action_values");
+  url.searchParams.set("limit", "500");
+  const rows = await fetchAll(url.toString());
   return rows.map((r) => ({
     date: r.date_start, age: r.age, gender: r.gender,
     impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
@@ -200,11 +134,15 @@ export async function fetchMetaDemographics({ adAccountId }, since, until) {
 // Dispositivo: breakdown impression_device (a nivel cuenta, agregado del período).
 export async function fetchMetaDevices({ adAccountId }, since, until) {
   const { token, version } = base(adAccountId);
-  const armarUrl = urlInsights({
-    token, version, adAccountId, level: "account", breakdowns: "impression_device",
-    fields: "impressions,clicks,spend,actions,action_values",
-  });
-  const rows = await traerRango(armarUrl, since, until, VENTANA_CAMPAÑA);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("level", "account");
+  url.searchParams.set("breakdowns", "impression_device");
+  url.searchParams.set("time_increment", "1");
+  url.searchParams.set("time_range", JSON.stringify({ since, until }));
+  url.searchParams.set("fields", "impressions,clicks,spend,actions,action_values");
+  url.searchParams.set("limit", "500");
+  const rows = await fetchAll(url.toString());
   return rows.map((r) => ({
     date: r.date_start, device: r.impression_device,
     impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
