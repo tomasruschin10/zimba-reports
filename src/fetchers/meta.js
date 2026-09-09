@@ -16,14 +16,19 @@ const MSG_TYPE = "onsite_conversion.messaging_conversation_started_7d";
 //   32  page request limit       613 calls per hour exceeded
 const TRANSIENT = new Set([1, 2, 4, 17, 32, 613]);
 
-// PERO: hay dos subcódigos que vienen disfrazados de "transitorio" y no lo son.
-// 1504043 y 1504044 significan "esta consulta pide demasiada data para responder
+// PERO: hay subcódigos que vienen disfrazados de "transitorio" y no lo son.
+// Todos significan lo mismo: "esta consulta pide demasiada data para responder
 // sincrónicamente". Reintentarla es tiempo perdido — la misma consulta va a
 // fallar siempre. Verificado el 19/8 en el Graph API Explorer: la cuenta
 // Minorista de Chill Out a nivel ad con actions/action_values falla igual a 3
 // meses que a 1 mes, mientras que sin esos dos campos responde en 3 segundos.
 // Los marcamos como permanentes para cortar rápido y caer al async job.
-const DEMASIADA_DATA = new Set([1504043, 1504044]);
+//   1504043 / 1504044  la consulta no entra sincrónica
+//   1504018            idem, pero Meta lo devuelve como "Invalid parameter"
+//                      (code 100). Es el que rompía Minorista: al no estar acá,
+//                      se trataba como error permanente y se perdía la cuenta.
+//   1487534            límite de data por llamada (documentado por Meta)
+const DEMASIADA_DATA = new Set([1504043, 1504044, 1504018, 1487534]);
 
 const BACKOFF_MS = [3000, 8000, 20000, 45000]; // 4 reintentos, esperas crecientes
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
