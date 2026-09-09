@@ -50,11 +50,18 @@ async function buildClient(client) {
   for (const acc of meta?.accounts || []) {
     try {
       const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id }, since, until);
-      const ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
       for (const r of camps) campaignRows.push({ account: acc.label, ...r });
-      for (const r of ads) adRows.push({ account: acc.label, ...r });
       accounts.push(acc.label);
       accountModes[acc.label] = acc.mode || "sales";
+
+      // Nivel ad: es la consulta más pesada y la primera que se cae en las
+      // cuentas grandes. Va en su propio try para que un fallo acá no borre la
+      // cuenta entera del reporte — el resumen y las campañas ya están traídos.
+      let ads = [];
+      try {
+        ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
+        for (const r of ads) adRows.push({ account: acc.label, ...r });
+      } catch (e) { console.warn(`  ads ${acc.label}: ${e.message}`); }
 
       // Breakdowns (best-effort: si alguno falla, seguimos sin romper)
       try {
