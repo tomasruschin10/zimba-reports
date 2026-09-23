@@ -1,18 +1,17 @@
 name: Build & Deploy reportes
 on:
   schedule:
-    # Corrida temprana: 9:15 UTC = 6:15 ART. Para que el reporte esté arriba
-    # antes de las 7:30 ART aunque GitHub demore en tomar el job.
-    - cron: "15 9 * * *"
-    # Backup de la mañana: 10:40 UTC = 7:40 ART. Cubre el día que la de 6:15
-    # se retrasa o GitHub se saltea el schedule. El minuto :40 es a propósito:
-    # en las horas redondas la cola del tier gratuito es peor.
+    # Respaldo por si falla cron-job.org: 10:40 UTC = 7:40 ART
     - cron: "40 10 * * *"
-    # El resto del día: 3, 15, 19 y 23 UTC = 0, 12, 16 y 20 hs ART.
-    - cron: "0 3,15,19,23 * * *"
   workflow_dispatch:
+
+concurrency:
+  group: deploy-reportes
+  cancel-in-progress: false
+
 permissions:
   contents: write
+
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
