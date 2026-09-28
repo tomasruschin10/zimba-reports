@@ -1,7 +1,6 @@
 name: Build & Deploy reportes
 on:
   schedule:
-    # Respaldo por si falla cron-job.org: 10:40 UTC = 7:40 ART
     - cron: "40 10 * * *"
   workflow_dispatch:
 
@@ -14,7 +13,7 @@ permissions:
 
 jobs:
   build-deploy:
-      runs-on: [self-hosted, zimba]
+    runs-on: [self-hosted, zimba]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
