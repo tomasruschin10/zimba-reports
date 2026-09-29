@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reporte de campañas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f6f7f9;--surface:#fff;--surface-2:#f0f2f5;--border:#e4e7ec;--ink:#1a1d23;--muted:#697586;--faint:#98a2b3;--pos:#16a34a;--neg:#dc2626;--accent:#2563eb;--sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding:clamp(20px,4vw,48px);line-height:1.45;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1180px;margin:0 auto}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+  header h1{font-size:clamp(22px,3vw,30px);font-weight:650;letter-spacing:-.02em}
+  .stamp{font-size:13px;color:var(--muted);text-align:right}
+  .stamp .dot{color:var(--pos)}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:12px 0 2px}
+  .bar .lbl{font-size:12px;font-weight:600;color:var(--faint);margin-right:2px;min-width:64px}
+  .pill{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;transition:all .12s}
+  .sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+  .pill:hover{color:var(--ink);border-color:var(--muted)}
+  .pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  select{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;max-width:280px}
+  .dt{background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer}
+  .eyebrow{font-size:14px;font-weight:650;color:var(--ink);margin:34px 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 17px}
+  .metric .label{font-size:13px;color:var(--muted);margin-bottom:8px}
+  .metric .value{font-size:clamp(19px,2.1vw,24px);font-weight:650;letter-spacing:-.01em;white-space:nowrap}
+  .metric .delta{font-size:12px;font-weight:600;margin-top:7px;white-space:nowrap}
+  .metric .delta .vs{color:var(--faint);font-weight:400}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:4px}
+  thead th{font-size:12px;font-weight:600;color:var(--faint);text-align:right;padding:11px 12px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+  thead th:first-child{text-align:left}
+  thead th:hover{color:var(--ink)}
+  thead th .arr{color:var(--accent);font-size:10px}
+  tbody td{padding:11px 12px;text-align:right;border-bottom:1px solid var(--border)}
+  tbody td:first-child{text-align:left;font-weight:500}
+  tbody tr:hover td{background:var(--surface-2)}
+  tfoot td{padding:12px 12px;text-align:right;font-weight:700;border-top:2px solid var(--border)}
+  tfoot td:first-child{text-align:left}
+  .good{color:var(--pos);font-weight:600}.mid{color:var(--ink)}.low{color:var(--neg);font-weight:600}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .chartbox{position:relative}
+  .chartbox .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:7px 11px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-150%);opacity:0;transition:opacity .12s;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  .chartbox .tip.on{opacity:1}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:800px){.two{grid-template-columns:1fr}}
+  .tblcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .tblcard table{margin:0}.tblcard thead th,.tblcard tbody td{padding-left:16px;padding-right:16px}
+  .empty{color:var(--muted);padding:36px 0;font-size:15px}
+  .aviso{font-size:12px;color:var(--muted);line-height:1.55;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--faint);border-radius:8px;padding:11px 14px}
+  .tnhead{margin:44px 0 0;padding-top:26px;border-top:2px solid var(--border)}
+  .cruce{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:14px}
+  .cruce-t{font-size:14px;font-weight:650;margin-bottom:14px}
+  .cruce-b{display:flex;flex-wrap:wrap;gap:22px}
+  .cruce-i{display:flex;flex-direction:column;gap:3px;min-width:190px}
+  .cruce-l{font-size:12px;color:var(--muted)}
+  .cruce-v{font-size:19px;font-weight:650}
+  .cruce-s{font-size:12px;font-weight:400;color:var(--faint)}
+  .cok{color:var(--pos)}.cama{color:#c07d1e}.crojo{color:var(--neg)}
+  .cruce-n{margin-top:14px;font-size:12px;color:var(--muted);line-height:1.5}
+  .perdidas{background:#fdeaea;border:1px solid #f5c2c2;border-radius:12px;padding:16px 20px;margin-top:14px}
+  .perd-t{font-size:13px;font-weight:650;color:var(--neg);margin-bottom:5px}
+  .perd-v{font-size:20px;font-weight:700;color:var(--neg)}
+  .perd-n{margin-top:7px;font-size:12px;color:#8a4a4a;line-height:1.5}
+  footer{margin-top:44px;font-size:13px;color:var(--faint)}
+  .scroll{overflow-x:auto}
+  .mom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media(max-width:700px){.mom{grid-template-columns:1fr}}
+  .momcol{text-align:center}
+  .momcol .t{font-size:13px;color:var(--muted);margin-bottom:14px;font-weight:500}
+  .bars{display:flex;gap:18px;align-items:flex-end;justify-content:center;height:130px}
+  .barwrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+  .barwrap .v{font-size:12px;margin-bottom:6px;white-space:nowrap}
+  .barwrap .m{font-size:11px;color:var(--faint);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Cargando…</div></div>
+<script>
+// fx(): convierte un monto en pesos a la moneda activa. Los ratios (ROAS, CTR,
+// %, conversion rate) NO deben pasar por acá — no cambian con la moneda.
+// La conversión de moneda ocurre al SUMAR las filas (ver toView), no acá.
+// Para cuando llega al formateo, el monto ya está en la moneda que se ve.
+const fx=(n)=>(n||0);
+// Lleva un monto desde su moneda de origen (cur: "ARS" por defecto, "USD" en TikTok)
+// a la moneda que estás viendo. Viendo ARS: USD→×rate. Viendo USD: ARS→÷rate.
+function toView(n, cur){
+  n = n || 0;
+  const isUSD = cur === "USD";
+  if(currency === "USD") return isUSD ? n : (usdRate>0 ? n/usdRate : n);
+  return isUSD ? n*usdRate : n; // viendo ARS
+}
+const money=(n)=>"$"+(Math.round(fx(n))||0).toLocaleString("es-AR");
+const money2=(n)=>"$"+fx(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const dec=(n,d=2)=>(n||0).toFixed(d);
+const num=(n)=>(Math.round(n)||0).toLocaleString("es-AR");
+const roasCls=(r)=>r>=3?"good":r>=1.5?"mid":"low";
+const cap=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
+const ymd=(d)=>d.toISOString().slice(0,10);
+
+const slug=location.pathname.split("/").pop().replace(".html","")||"index";
+let DATA=null, view="mes", account="Todas", campaign="Todas";
+let sortCamp={col:"spend",dir:-1}, sortCre={col:"roas",dir:-1};
+let customFrom=null, customTo=null; // rango personalizado (view==="custom")
+let compare="prev"; // prev | month | year | none
+// Moneda: ARS por defecto. El rate default sale de clients.json (data.usdRate);
+// si el usuario lo cambia en pantalla, se guarda en SU navegador (localStorage).
+let currency="ARS"; // ARS | USD
+let usdRate=1;      // se setea en el arranque
+
+// modo de la cuenta activa: "sales" (venta) o "leads" (leads/mensajes).
+// En "Todas" mostramos solo cuentas de venta (por ahora solo Minorista).
+function salesAccounts(){return DATA.accounts.filter(a=>(DATA.accountModes?.[a]||"sales")==="sales");}
+function currentMode(){return account==="Todas"?"sales":(DATA.accountModes?.[account]||"sales");}
+
+function derive(a){
+  const {spend=0,revenue=0,purchases=0,clicks=0,impressions=0,leads=0,messages=0}=a;
+  return {spend,revenue,purchases,clicks,impressions,leads,messages,
+    roas:spend>0?revenue/spend:0, costPerPurchase:purchases>0?spend/purchases:0,
+    aov:purchases>0?revenue/purchases:0, ctr:impressions>0?(clicks/impressions)*100:0,
+    cpc:clicks>0?spend/clicks:0, convRate:clicks>0?(purchases/clicks)*100:0,
+    costPerLead:leads>0?spend/leads:0, costPerMsg:messages>0?spend/messages:0};
+}
+function sumRows(rows){
+  const a={spend:0,revenue:0,purchases:0,clicks:0,impressions:0,leads:0,messages:0};
+  for(const r of rows){a.spend+=toView(r.spend,r.cur);a.revenue+=toView(r.revenue,r.cur);a.purchases+=r.purchases;a.clicks+=r.clicks;a.impressions+=r.impressions;a.leads+=(r.leads||0);a.messages+=(r.messages||0);}
+  return derive(a);
+}
+const inRange=(d,f,t)=>d>=f&&d<=t;
+// filtro respeta cuenta+campaña+rango. En "Todas" incluye solo cuentas de venta.
+function acctOk(r){
+  if(account==="Todas")return salesAccounts().includes(r.account);
+  return r.account===account;
+}
+function filt(rows,from,to){return rows.filter(r=>acctOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,from,to));}
+function filtAcct(rows,from,to){return (rows||[]).filter(r=>acctOk(r)&&inRange(r.date,from,to));}
+
+function fixedRanges(today=new Date()){
+  const y=today.getFullYear(),m=today.getMonth();
+  const d=(n)=>{const x=new Date(today);x.setDate(x.getDate()-n);return ymd(x);};
+  const monthStart=new Date(y,m,1),dom=today.getDate();
+  const pmsd=new Date(y,m-1,Math.min(dom,new Date(y,m,0).getDate()));
+  return [
+    {key:"hoy",label:"Hoy",from:ymd(today),to:ymd(today),pf:d(1),pt:d(1)},
+    {key:"ayer",label:"Ayer",from:d(1),to:d(1),pf:d(2),pt:d(2)},
+    {key:"u3",label:"Últimos 3",from:d(2),to:ymd(today),pf:d(5),pt:d(3)},
+    {key:"u7",label:"Últimos 7",from:d(6),to:ymd(today),pf:d(13),pt:d(7)},
+    {key:"u15",label:"Últimos 15",from:d(14),to:ymd(today),pf:d(29),pt:d(15)},
+    {key:"mes",label:"Este mes",from:ymd(monthStart),to:ymd(today),pf:ymd(new Date(y,m-1,1)),pt:ymd(pmsd)},
+    {key:"mespasado",label:"Mes pasado",from:ymd(new Date(y,m-1,1)),to:ymd(new Date(y,m,0)),pf:ymd(new Date(y,m-2,1)),pt:ymd(new Date(y,m-1,0))},
+    {key:"u30",label:"Últimos 30",from:d(29),to:ymd(today),pf:d(59),pt:d(30)},
+  ];
+}
+// Corre una fecha N meses (negativo = hacia atrás), respetando fin de mes.
+function shiftMonths(dateStr,n){
+  const d=new Date(dateStr+"T00:00:00Z"); const dia=d.getUTCDate();
+  d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+n);
+  const ultimo=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+  d.setUTCDate(Math.min(dia,ultimo));
+  return d.toISOString().slice(0,10);
+}
+// Devuelve el rango activo (fijo o personalizado) y su período de comparación,
+// que depende del modo elegido en la barra "Comparar".
+function currentRange(){
+  let R;
+  if(view!=="custom"){
+    R={...fixedRanges().find(r=>r.key===view)};
+  }else{
+    const hoy=ymd(new Date());
+    const from=customFrom||hoy, to=customTo||hoy;
+    const d1=new Date(from+"T00:00:00Z"), d2=new Date(to+"T00:00:00Z");
+    const dias=Math.max(Math.round((d2-d1)/86400000)+1,1);
+    const pt=new Date(d1); pt.setUTCDate(pt.getUTCDate()-1);
+    const pf=new Date(pt); pf.setUTCDate(pf.getUTCDate()-(dias-1));
+    R={key:"custom",label:"Personalizado",from,to,pf:pf.toISOString().slice(0,10),pt:pt.toISOString().slice(0,10)};
+  }
+  if(compare==="month"){R.pf=shiftMonths(R.from,-1);R.pt=shiftMonths(R.to,-1);}
+  else if(compare==="year"){R.pf=shiftMonths(R.from,-12);R.pt=shiftMonths(R.to,-12);}
+  else if(compare==="none"){R.pf=null;R.pt=null;}
+  return R;
+}
+function groupBy(rows,key){const m=new Map();for(const r of rows){const k=r[key]||"—";if(!m.has(k))m.set(k,[]);m.get(k).push(r);}return m;}
+function seriesByDay(rows,valueFn){
+  const m=new Map();
+  for(const r of rows){if(!m.has(r.date))m.set(r.date,{spend:0,revenue:0,purchases:0,leads:0,messages:0});const o=m.get(r.date);o.spend+=toView(r.spend,r.cur);o.revenue+=toView(r.revenue,r.cur);o.purchases+=r.purchases;o.leads+=(r.leads||0);o.messages+=(r.messages||0);}
+  return [...m.entries()].map(([date,o])=>({date,value:valueFn(o)})).sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+const PAY_LABELS={credit_card:"Tarjeta de crédito",debit_card:"Tarjeta de débito",custom:"Transferencia bancaria",wallet:"Billetera virtual",ticket:"Efectivo / Pago fácil",boleto:"Boleto",pix:"Pix"};
+function payLabel(m){return PAY_LABELS[m]||m;}
+function kpi(label, cls, val, delta) {
+  return `<div class="metric"><div class="label">${label}</div><div class="value ${cls||''}">${val}</div>${delta}</div>`;
+}
+function deltaBadge(cur,prev,dir){
+  if(compare==="none")return "";
+  if(prev===0||prev==null){return `<div class="delta"><span class="vs">— vs anterior</span></div>`;}
+  const pct=((cur-prev)/Math.abs(prev))*100;const up=pct>=0;
+  let color="var(--faint)";
+  if(dir!==0){const good=dir===1?up:!up;color=good?"var(--pos)":"var(--neg)";}
+  return `<div class="delta" style="color:${color}">${up?"▲":"▼"} ${Math.abs(pct).toFixed(1)}% <span class="vs">vs anterior</span></div>`;
+}
+
+// Formato compacto para el eje Y: $2,4M / $845K / $312 (evita que se corte).
+function compact(v){
+  const a=Math.abs(v);
+  if(a>=1e6)return "$"+(v/1e6).toLocaleString("es-AR",{maximumFractionDigits:1})+"M";
+  if(a>=1e3)return "$"+(v/1e3).toLocaleString("es-AR",{maximumFractionDigits:1})+"K";
+  return "$"+Math.round(v).toLocaleString("es-AR");
+}
+function lineChart(series,fmt,alto){
+  if(!series.length) return '<div class="empty">Sin datos en el rango.</div>';
+  const W=1140,H=alto||300;
+  const max=Math.max(...series.map(d=>d.value),1)*1.15;
+  // margen izquierdo dinámico: ~8px por caracter de la etiqueta más ancha (evita el corte)
+  const labels=[0,max/2,max].map(fmt);
+  const padL=Math.max(52,...labels.map(s=>String(s).length*8+16));
+  const padR=20,padT=18,padB=34;
+  const x=(i)=>padL+(i*(W-padL-padR))/Math.max(series.length-1,1);
+  const y=(v)=>H-padB-(v/max)*(H-padT-padB);
+  const pts=series.map((d,i)=>`${x(i)},${y(d.value)}`).join(" ");
+  const gy=[0,max/4,max/2,max*0.75,max].map(v=>`<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e7ec"/><text x="${padL-10}" y="${y(v)+5}" fill="#98a2b3" font-size="13" text-anchor="end">${fmt(v)}</text>`).join("");
+  const step=Math.ceil(series.length/14||1);
+  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-10}" fill="#98a2b3" font-size="12" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
+  const dots=series.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.value)}" r="3.5" fill="#2563eb"/>`).join("");
+  // datos para el tooltip: coordenadas + texto ya formateado
+  const meta=series.map((d,i)=>({x:x(i),y:y(d.value),t:`${d.date.slice(8)}/${d.date.slice(5,7)} · ${fmt(d.value)}`}));
+  const json=JSON.stringify(meta).replace(/'/g,"&#39;");
+  return `<div class="chartbox" data-pts='${json}' data-w="${W}" data-h="${H}">
+    <svg viewBox="0 0 ${W} ${H}" width="100%">
+      ${gy}
+      <line class="gd" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="#c7d2fe" stroke-width="1.5" opacity="0"/>
+      <polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${lbl}
+      <circle class="hl" cx="0" cy="0" r="6" fill="#2563eb" stroke="#fff" stroke-width="2.5" opacity="0"/>
+    </svg>
+    <div class="tip"></div>
+  </div>`;
+}
+// Engancha el hover de cada gráfico después de pintar el HTML.
+function attachCharts(){
+  document.querySelectorAll(".chartbox").forEach(box=>{
+    let pts; try{ pts=JSON.parse(box.dataset.pts); }catch(e){ return; }
+    if(!pts||!pts.length) return;
+    const W=+box.dataset.w, H=+box.dataset.h;
+    const svg=box.querySelector("svg"), hl=box.querySelector(".hl"), gd=box.querySelector(".gd"), tip=box.querySelector(".tip");
+    const mover=(clientX)=>{
+      const r=svg.getBoundingClientRect();
+      const sx=((clientX-r.left)/r.width)*W;
+      let mejor=pts[0], dist=Infinity;
+      for(const p of pts){const d=Math.abs(p.x-sx); if(d<dist){dist=d;mejor=p;}}
+      hl.setAttribute("cx",mejor.x); hl.setAttribute("cy",mejor.y); hl.setAttribute("opacity","1");
+      gd.setAttribute("x1",mejor.x); gd.setAttribute("x2",mejor.x); gd.setAttribute("opacity","1");
+      tip.textContent=mejor.t;
+      tip.style.left=(mejor.x/W*r.width)+"px";
+      tip.style.top=(mejor.y/H*r.height)+"px";
+      tip.classList.add("on");
+    };
+    box.addEventListener("mousemove",(e)=>mover(e.clientX));
+    box.addEventListener("touchmove",(e)=>{if(e.touches[0])mover(e.touches[0].clientX);},{passive:true});
+    const salir=()=>{hl.setAttribute("opacity","0");gd.setAttribute("opacity","0");tip.classList.remove("on");};
+    box.addEventListener("mouseleave",salir);
+    box.addEventListener("touchend",salir);
+  });
+}
+function momChart(groups,curName,prevName){
+  return `<div class="mom">`+groups.map(g=>{
+    const mx=Math.max(g.c,g.p,1);const h=(v)=>Math.max((v/mx)*88,3);
+    return `<div class="momcol"><div class="t">${g.k}</div>
+      <div class="bars">
+        <div class="barwrap"><div class="v" style="color:var(--muted)">${g.fmt(g.p)}</div><div style="width:36px;height:${h(g.p)}px;background:#c7d2fe;border-radius:5px 5px 0 0"></div><div class="m">${prevName}</div></div>
+        <div class="barwrap"><div class="v" style="color:var(--ink);font-weight:600">${g.fmt(g.c)}</div><div style="width:36px;height:${h(g.c)}px;background:#2563eb;border-radius:5px 5px 0 0"></div><div class="m">${curName}</div></div>
+      </div></div>`;
+  }).join("")+`</div>`;
+}
+function heatColor(t){const lo=[249,115,22],hi=[22,163,74];const c=lo.map((v,i)=>Math.round(v+(hi[i]-v)*t));return `rgba(${c[0]},${c[1]},${c[2]},0.16)`;}
+function th(label,col,state,setter,align){const arr=state.col===col?(state.dir===1?"▲":"▼"):"";return `<th style="text-align:${align||'right'}" onclick="${setter}('${col}')">${label} <span class="arr">${arr}</span></th>`;}
+function sortRows(rows,state){return [...rows].sort((a,b)=>{const x=a[state.col],y=b[state.col];if(typeof x==="string")return state.dir*x.localeCompare(y);return state.dir*((x||0)-(y||0));});}
+
+// demografía/dispositivo
+const AGES=["18-24","25-34","35-44","45-54","55-64","65+"];
+const GENDERS=["female","male","unknown"];
+const GCOLORS={female:"#4c1d95",male:"#8b5cf6",unknown:"#c4b5fd"};
+const GLABELS={female:"Mujeres",male:"Hombres",unknown:"Sin dato"};
+function demoByAge(rows,metric){
+  const m={};for(const a of AGES)m[a]={female:0,male:0,unknown:0};
+  for(const r of rows){const age=AGES.includes(r.age)?r.age:null;if(!age)continue;const g=GENDERS.includes(r.gender)?r.gender:"unknown";m[age][g]+=(r[metric]||0);}
+  return m;
+}
+function deviceAgg(rows,metric){
+  const m=new Map();for(const r of rows){const k=r.device||"other";m.set(k,(m.get(k)||0)+(r[metric]||0));}
+  return [...m.entries()].map(([device,v])=>({device,v})).filter(d=>d.v>0).sort((a,b)=>b.v-a.v);
+}
+function ageGenderChart(byAge){
+  const max=Math.max(...AGES.map(a=>GENDERS.reduce((s,g)=>s+byAge[a][g],0)),1);
+  const legend=GENDERS.map(g=>`<span style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:12px;color:var(--muted)"><span style="width:11px;height:11px;border-radius:3px;background:${GCOLORS[g]}"></span>${GLABELS[g]}</span>`).join("");
+  const rows=AGES.map(a=>{
+    const tot=GENDERS.reduce((s,g)=>s+byAge[a][g],0);
+    const segs=GENDERS.map(g=>{const w=(byAge[a][g]/max)*100;return w>0?`<div style="width:${w}%;background:${GCOLORS[g]};height:100%"></div>`:"";}).join("");
+    return `<div style="display:flex;align-items:center;gap:10px;margin:7px 0"><div style="width:52px;font-size:12px;color:var(--muted);text-align:right">${a}</div><div style="flex:1;display:flex;height:20px;border-radius:5px;overflow:hidden;background:var(--surface-2)">${segs}</div><div style="width:44px;font-size:12px;text-align:right;font-weight:500">${num(tot)}</div></div>`;
+  }).join("");
+  return `<div style="margin-bottom:12px">${legend}</div>${rows}`;
+}
+function deviceChart(agg){
+  if(!agg.length)return '<div class="empty">Sin datos.</div>';
+  const total=agg.reduce((s,d)=>s+d.v,0);
+  const colors=["#6d28d9","#8b5cf6","#a78bfa","#c4b5fd","#ddd6fe","#ede9fe"];
+  let acc=0;const R=52,C=70,SW=22;const circ=2*Math.PI*R;
+  const segs=agg.map((d,i)=>{const frac=d.v/total;const dash=frac*circ;const off=circ*0.25-acc*circ;acc+=frac;return `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="${SW}" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${off}"/>`;}).join("");
+  const legend=agg.map((d,i)=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]}"></span>${d.device} <b style="color:var(--ink);margin-left:auto;font-weight:600">${((d.v/total)*100).toFixed(1)}%</b></div>`).join("");
+  return `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap"><svg width="140" height="140" viewBox="0 0 140 140">${segs}</svg><div style="flex:1;min-width:140px">${legend}</div></div>`;
+}
+
+function render(){
+  const mode=currentMode();
+  const R=currentRange();
+  const cRows=filt(DATA.campaignRows,R.from,R.to);
+  const aRows=filt(DATA.adRows,R.from,R.to);
+  const t=sumRows(cRows);
+  const prevRows=compare==="none"?[]:filt(DATA.campaignRows,R.pf,R.pt);
+  const tPrev=sumRows(prevRows);
+
+  // controles
+  const viewOpts=fixedRanges().map(r=>({key:r.key,label:r.label}));
+  // Label lindo por cuenta: Meta ads - X, Google ads, etc.
+  const platLabel=(k)=>{
+    if(k==="Todas")return "Todas";
+    if(k==="Google")return "Google ads";
+    if(k==="TikTok")return "TikTok ads";
+    if(k==="Pinterest")return "Pinterest ads";
+    return "Meta ads - "+k;
+  };
+  const hoyStr=ymd(new Date());
+  const acctBar=DATA.accounts.length>1?`<div class="bar"><span class="lbl">Cuenta</span>`+
+    [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${platLabel(o.k)}</span>`).join("")+`</div>`:"";
+  const allCampNames=[...new Set(DATA.campaignRows.filter(r=>acctOk(r)).map(r=>r.campaign_name))].sort();
+  const cmpOpts=[{k:"prev",l:"vs período anterior"},{k:"month",l:"vs mes anterior"},{k:"year",l:"vs año anterior"},{k:"none",l:"sin comparar"}];
+  const sinPrev=compare!=="none"&&prevRows.length===0;
+  // Una sola fila con campaña + fechas + comparación (antes eran tres filas).
+  // Las fechas muestran siempre el rango activo: tocar una pasa a personalizado.
+  const filtrosBar=`<div class="bar"><span class="lbl">Filtros</span>`+
+    `<select onchange="setCampaign(this.value)" title="Campaña"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
+      allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select>`+
+    `<span class="sep"></span>`+
+    `<input type="date" class="dt" value="${R.from}" max="${hoyStr}" onchange="setCustomFrom(this.value)">`+
+    `<span style="color:var(--faint)">→</span>`+
+    `<input type="date" class="dt" value="${R.to}" max="${hoyStr}" onchange="setCustomTo(this.value)">`+
+    (view==="custom"?`<span style="font-size:12px;color:var(--accent);font-weight:600">personalizado</span>`:"")+
+    `<span class="sep"></span>`+
+    `<select onchange="setCompare(this.value)" title="Comparación">`+
+      cmpOpts.map(o=>`<option value="${o.k}" ${compare===o.k?"selected":""}>${o.l}</option>`).join("")+`</select>`+
+    (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos":R.pf+" → "+R.pt}</span>`:"")+
+    `<span class="sep"></span>`+
+    `<select onchange="setCurrency(this.value)" title="Moneda"><option value="ARS" ${currency==="ARS"?"selected":""}>ARS $</option><option value="USD" ${currency==="USD"?"selected":""}>USD $</option></select>`+
+    (currency==="USD"?`<span style="font-size:12px;color:var(--faint)">1 USD =</span><input type="number" id="usdRateInput" class="dt" style="width:88px" value="${usdRate}" min="1" oninput="setRate(this.value)"><span style="font-size:12px;color:var(--faint)">ARS</span>`:"")+
+    `</div>`;
+
+  // Sello del header: fechas en castellano y "actualizado hoy/ayer a las HH:MM".
+  const fFecha=(s)=>new Date(s+"T00:00:00Z").toLocaleDateString("es-AR",{day:"numeric",month:"short",timeZone:"UTC"});
+  const cuandoAct=(()=>{
+    const u=new Date(DATA.updatedAt), h=new Date(), a=new Date(); a.setDate(a.getDate()-1);
+    const igual=(x,y)=>x.toDateString()===y.toDateString();
+    const dia=igual(u,h)?"hoy":igual(u,a)?"ayer":"el "+u.toLocaleDateString("es-AR",{day:"numeric",month:"short"});
+    return `${dia} a las ${u.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}`;
+  })();
+
+  const now=new Date();
+  const curName=cap(now.toLocaleString("es-AR",{month:"long"}));
+  const prevName=cap(new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleString("es-AR",{month:"long"}));
+  const rr=fixedRanges();
+  const curM=sumRows(filt(DATA.campaignRows,rr.find(r=>r.key==="mes").from,rr.find(r=>r.key==="mes").to));
+  const prevM=sumRows(filt(DATA.campaignRows,rr.find(r=>r.key==="mespasado").from,rr.find(r=>r.key==="mespasado").to));
+
+  // ===== KPIs, tabla, gráficos, creatives, demo según MODO =====
+  let kpis, campHead, campBody, campFoot, chartsHTML, momGroups, creHead, creBody, demoMetric, demoTitle;
+
+  if(mode==="leads"){
+    kpis=[
+      {l:"Inversión",v:money(t.spend),c:t.spend,p:tPrev.spend,dir:0},
+      {l:"Leads",v:num(t.leads),c:t.leads,p:tPrev.leads,dir:1},
+      {l:"$/Form",v:money(t.costPerLead),c:t.costPerLead,p:tPrev.costPerLead,dir:-1},
+      {l:"Mensajes",v:num(t.messages),c:t.messages,p:tPrev.messages,dir:1},
+      {l:"Costo por mensaje",v:money(t.costPerMsg),c:t.costPerMsg,p:tPrev.costPerMsg,dir:-1},
+      {l:"CTR",v:dec(t.ctr,1)+"%",c:t.ctr,p:tPrev.ctr,dir:1},
+      {l:"CPC",v:money2(t.cpc),c:t.cpc,p:tPrev.cpc,dir:-1},
+    ];
+    // tabla campaña (modo leads)
+    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
+    let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
+    campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Leads","leads",sortCamp,"sortByCamp")}${th("$/Form","costPerLead",sortCamp,"sortByCamp")}${th("Mensajes","messages",sortCamp,"sortByCamp")}${th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp")}`;
+    campBody=byC.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td><td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
+    campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td><td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`;
+    // gráficos: leads y mensajes por día
+    chartsHTML=`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>
+      <p class="eyebrow">Mensajes por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.messages),(v)=>num(v))}</div>`;
+    momGroups=[{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)},{k:"Mensajes",c:curM.messages,p:prevM.messages,fmt:(v)=>num(v)},{k:"Costo/mensaje",c:curM.costPerMsg,p:prevM.costPerMsg,fmt:(v)=>money(v)}];
+    // creatives por mensajes
+    let cre=[...groupBy(aRows,"ad_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(c=>c.spend>0);
+    const vals=cre.map(c=>c.messages);const mn=Math.min(...vals,0),mx=Math.max(...vals,1);
+    if(sortCre.col==="roas")sortCre.col="messages";
+    cre=sortRows(cre,sortCre).slice(0,15);
+    creHead=`<th></th>${th("Creativo","name",sortCre,"sortByCre","left")}${th("Campaña","campaign",sortCre,"sortByCre","left")}${th("Inversión","spend",sortCre,"sortByCre")}${th("Mensajes","messages",sortCre,"sortByCre")}${th("Costo/msj","costPerMsg",sortCre,"sortByCre")}${th("Leads","leads",sortCre,"sortByCre")}${th("CTR","ctr",sortCre,"sortByCre")}`;
+    creBody=cre.map(c=>{const tn=mx>mn?(c.messages-mn)/(mx-mn):1;const th2=(DATA.thumbnails&&DATA.thumbnails[c.name])?`<img src="${DATA.thumbnails[c.name]}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block" loading="lazy">`:`<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-2)"></div>`;return `<tr style="background:${heatColor(tn)}"><td style="width:52px">${th2}</td><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td><td style="font-weight:600">${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td><td>${num(c.leads)}</td><td>${dec(c.ctr,1)}%</td></tr>`;}).join("");
+    demoMetric="messages";demoTitle="Mensajes por audiencia";
+  } else {
+    kpis=[
+      {l:"ROAS",v:dec(t.roas),cls:roasCls(t.roas),c:t.roas,p:tPrev.roas,dir:1},
+      {l:"Inversión",v:money(t.spend),c:t.spend,p:tPrev.spend,dir:0},
+      {l:"Valor de compras",v:money(t.revenue),c:t.revenue,p:tPrev.revenue,dir:1},
+      {l:"Compras",v:num(t.purchases),c:t.purchases,p:tPrev.purchases,dir:1},
+      {l:"Costo por compra",v:money(t.costPerPurchase),c:t.costPerPurchase,p:tPrev.costPerPurchase,dir:-1},
+      {l:"Ticket promedio",v:money(t.aov),c:t.aov,p:tPrev.aov,dir:1},
+      {l:"CTR",v:dec(t.ctr,1)+"%",c:t.ctr,p:tPrev.ctr,dir:1},
+      {l:"CPC",v:money2(t.cpc),c:t.cpc,p:tPrev.cpc,dir:-1},
+      {l:"Conversion rate",v:dec(t.convRate,1)+"%",c:t.convRate,p:tPrev.convRate,dir:1},
+    ];
+    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
+    let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
+    campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Compras","purchases",sortCamp,"sortByCamp")}${th("ROAS","roas",sortCamp,"sortByCamp")}${th("Valor","revenue",sortCamp,"sortByCamp")}${th("Costo/compra","costPerPurchase",sortCamp,"sortByCamp")}`;
+    campBody=byC.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
+    campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${t.purchases>0?money(t.costPerPurchase):"—"}</td>`;
+    chartsHTML=`<p class="eyebrow">ROAS por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.spend>0?o.revenue/o.spend:0),(v)=>dec(v,1))}</div>
+      <p class="eyebrow">Ingreso por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.revenue),compact)}</div>`;
+    momGroups=[{k:"ROAS",c:curM.roas,p:prevM.roas,fmt:(v)=>dec(v,1)},{k:"Compras",c:curM.purchases,p:prevM.purchases,fmt:(v)=>num(v)},{k:"Costo/compra",c:curM.costPerPurchase,p:prevM.costPerPurchase,fmt:(v)=>money(v)}];
+    let cre=[...groupBy(aRows,"ad_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(c=>c.spend>0);
+    const vals=cre.map(c=>c.roas);const mn=Math.min(...vals,0),mx=Math.max(...vals,1);
+    if(sortCre.col==="messages")sortCre.col="roas";
+    cre=sortRows(cre,sortCre).slice(0,15);
+    creHead=`<th></th>${th("Creativo","name",sortCre,"sortByCre","left")}${th("Campaña","campaign",sortCre,"sortByCre","left")}${th("Inversión","spend",sortCre,"sortByCre")}${th("ROAS","roas",sortCre,"sortByCre")}${th("Ingresos","revenue",sortCre,"sortByCre")}${th("CPA","costPerPurchase",sortCre,"sortByCre")}${th("CTR","ctr",sortCre,"sortByCre")}${th("Compras","purchases",sortCre,"sortByCre")}${th("Conv. rate","convRate",sortCre,"sortByCre")}`;
+    creBody=cre.map(c=>{const tn=mx>mn?(c.roas-mn)/(mx-mn):1;const th2=(DATA.thumbnails&&DATA.thumbnails[c.name])?`<img src="${DATA.thumbnails[c.name]}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block" loading="lazy">`:`<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-2)"></div>`;return `<tr style="background:${heatColor(tn)}"><td style="width:52px">${th2}</td><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td><td style="font-weight:600">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td><td>${dec(c.ctr,1)}%</td><td>${num(c.purchases)}</td><td>${dec(c.convRate,1)}%</td></tr>`;}).join("");
+    demoMetric="purchases";demoTitle="Compras por audiencia";
+  }
+
+  const kpiCards=kpis.map(k=>`<div class="metric"><div class="label">${k.l}</div><div class="value ${k.cls||''}">${k.v}</div>${deltaBadge(k.c,k.p,k.dir)}</div>`).join("");
+  const colspan=mode==="leads"?8:10;
+
+  // demo/device (métrica según modo)
+  const demoRows=filtAcct(DATA.demoRows,R.from,R.to);
+  const deviceRows=filtAcct(DATA.deviceRows,R.from,R.to);
+  const byAge=demoByAge(demoRows,demoMetric);
+  const devAgg=deviceAgg(deviceRows,demoMetric);
+  // Solo mostramos audiencia/dispositivo/creativos si la cuenta activa realmente
+  // los trae. TikTok y Pinterest hoy solo devuelven nivel campaña, así que sus
+  // pestañas no muestran secciones vacías.
+  const hasDemo=demoRows.length>0;
+  const hasDevice=deviceRows.length>0;
+  const hasAds=aRows.length>0;
+
+  // ── Tienda Nube: ventas reales del ecommerce (independiente de la cuenta activa) ──
+  const TN=DATA.tienda;
+  const hasTN=!!(TN&&TN.daily&&TN.daily.length);
+  let tnSum=null,tnLost=null,tnPrev=null,tnPayAgg=[];
+  if(hasTN){
+    const inR=(d)=>inRange(d,R.from,R.to), inP=(d)=>inRange(d,R.pf,R.pt);
+    const sum=(rows,f)=>rows.filter(r=>f(r.date)).reduce((a,r)=>({orders:a.orders+r.orders,revenue:a.revenue+toView(r.revenue,"ARS"),units:a.units+(r.units||0)}),{orders:0,revenue:0,units:0});
+    tnSum=sum(TN.daily,inR); tnPrev=sum(TN.daily,inP); tnLost=sum(TN.lost||[],inR);
+    tnSum.ticket=tnSum.orders>0?tnSum.revenue/tnSum.orders:0;
+    tnPrev.ticket=tnPrev.orders>0?tnPrev.revenue/tnPrev.orders:0;
+    tnPayAgg=(()=>{const m={};for(const r of (TN.payments||[]).filter(r=>inR(r.date))){if(!m[r.metodo])m[r.metodo]={metodo:r.metodo,pagadas:0,perdidas:0,revPagadas:0,revPerdidas:0};m[r.metodo].pagadas+=r.pagadas;m[r.metodo].perdidas+=r.perdidas;m[r.metodo].revPagadas+=r.revPagadas;m[r.metodo].revPerdidas+=r.revPerdidas;}return Object.values(m).sort((a,b)=>(b.pagadas+b.perdidas)-(a.pagadas+a.perdidas));})();
+  }
+  // Cruce: lo que los ads dicen que generaron vs lo que la tienda realmente facturó.
+  const adsRev=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=toView(r.revenue,r.cur);}return s;})();
+  const adsPur=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.purchases;}return s;})();
+  const cobertura=hasTN&&tnSum.revenue>0?(adsRev/tnSum.revenue)*100:0;
+
+  // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
+  const isGoogle=(account==="Google");
+  const gFilt=(rows)=>(rows||[]).filter(r=>(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
+  const gTypeRows=isGoogle?[...groupBy(cRows,"channel_type").entries()].map(([name,rows])=>({name,...sumRows(rows)})).sort((a,b)=>b.spend-a.spend):[];
+  const gAdGroups=isGoogle?[...groupBy(gFilt(DATA.googleAdGroups),"ad_group_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,20):[];
+  const gKeywords=isGoogle?[...groupBy(gFilt(DATA.googleKeywords),"keyword").entries()].map(([name,rows])=>({name,adgroup:rows[0].ad_group_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,25):[];
+
+  document.getElementById("app").innerHTML=`
+    <header><h1>${DATA.client} · Reporte de campañas</h1>
+      <div class="stamp"><span class="dot">●</span> Datos del ${fFecha(R.from)} al ${fFecha(R.to)}<br><span style="color:var(--faint)">Actualizado ${cuandoAct}</span></div></header>
+    ${acctBar}
+    <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
+    ${filtrosBar}
+
+    ${currency==="USD"?`<div class="aviso" style="margin-top:14px">Valores convertidos a <b>USD</b> a un tipo de cambio de <b>$${num(usdRate)}</b> (editable arriba). Es una conversión de referencia con la cotización de hoy: montos de fechas pasadas no reflejan el dólar de ese día.</div>`:""}
+    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${account==="Mayorista"?"leads y mensajes":"venta"} · vs período anterior</span></p>
+    <div class="grid">${kpiCards}</div>
+
+    <p class="eyebrow">Por campaña</p>
+    <div class="tblcard scroll"><table>
+      <thead><tr>${campHead}</tr></thead>
+      <tbody>${campBody||`<tr><td colspan="${colspan}" style="color:var(--muted)">Sin campañas.</td></tr>`}</tbody>
+      <tfoot><tr>${campFoot}</tr></tfoot>
+    </table></div>
+
+    ${chartsHTML}
+
+    <p class="eyebrow">Mes contra mes</p>
+    <div class="card">${momChart(momGroups,curName,prevName)}</div>
+
+    ${!isGoogle&&hasAds?`<p class="eyebrow">Best creatives</p>
+    <div class="tblcard scroll"><table>
+      <thead><tr>${creHead}</tr></thead>
+      <tbody>${creBody||`<tr><td colspan="${colspan}" style="color:var(--muted)">Sin creativos con inversión.</td></tr>`}</tbody>
+    </table></div>`:""}
+
+    ${isGoogle&&gTypeRows.length?`<p class="eyebrow">Por tipo de campaña</p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Tipo</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>CTR</th></tr></thead>
+      <tbody>${gTypeRows.map(t=>`<tr><td>${t.name}</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${dec(t.ctr,1)}%</td></tr>`).join("")}</tbody>
+    </table></div>`:""}
+
+    ${isGoogle?`<p class="eyebrow">Grupos de anuncios <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por inversión</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Grupo</th><th style="text-align:left">Campaña</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>CTR</th><th>CPC</th></tr></thead>
+      <tbody>${gAdGroups.length?gAdGroups.map(a=>`<tr><td>${a.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${a.campaign}</td><td>${money(a.spend)}</td><td>${num(a.purchases)}</td><td class="${roasCls(a.roas)}">${dec(a.roas)}</td><td>${money(a.revenue)}</td><td>${dec(a.ctr,1)}%</td><td>${money2(a.cpc)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
+    </table></div>`:""}
+
+    ${isGoogle?`<p class="eyebrow">Keywords <span style="font-weight:400;color:var(--faint);font-size:12px">· top 25 por inversión</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Keyword</th><th style="text-align:left">Grupo</th><th>Inversión</th><th>Clicks</th><th>Impr.</th><th>CTR</th><th>CPC</th><th>Compras</th></tr></thead>
+      <tbody>${gKeywords.length?gKeywords.map(k=>`<tr><td>${k.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${k.adgroup}</td><td>${money(k.spend)}</td><td>${num(k.clicks)}</td><td>${num(k.impressions)}</td><td>${dec(k.ctr,1)}%</td><td>${money2(k.cpc)}</td><td>${num(k.purchases)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
+    </table></div>`:""}
+
+    ${(hasDemo||hasDevice)&&!isGoogle?`<p class="eyebrow">${demoTitle} <span style="font-weight:400;color:var(--faint);font-size:12px">· a nivel cuenta</span></p>
+    <div class="two">
+      ${hasDemo?`<div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por edad y género</div>${ageGenderChart(byAge)}</div>`:""}
+      ${hasDevice?`<div class="card"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px">Por dispositivo</div>${deviceChart(devAgg)}</div>`:""}
+    </div>`:""}
+
+    ${hasTN?`
+    <div class="tnhead"><p class="eyebrow" style="margin:0">Tienda online <span style="font-weight:400;color:var(--faint);font-size:12px">· ventas reales del ecommerce (Tienda Nube)</span></p></div>
+
+    <div class="grid">
+      ${kpi("Facturación real","tienda",money(tnSum.revenue),deltaBadge(tnSum.revenue,tnPrev.revenue,1))}
+      ${kpi("Órdenes pagadas","tienda",num(tnSum.orders),deltaBadge(tnSum.orders,tnPrev.orders,1))}
+      ${kpi("Ticket promedio","tienda",money(tnSum.ticket),deltaBadge(tnSum.ticket,tnPrev.ticket,1))}
+      ${kpi("Unidades vendidas","tienda",num(tnSum.units),"")}
+    </div>
+
+    <div class="cruce">
+      <div class="cruce-t">Ads vs ventas reales</div>
+      <div class="cruce-b">
+        <div class="cruce-i"><span class="cruce-l">Los ads dicen que generaron</span><span class="cruce-v">${money(adsRev)} <span class="cruce-s">· ${num(adsPur)} compras</span></span></div>
+        <div class="cruce-i"><span class="cruce-l">La tienda realmente facturó</span><span class="cruce-v">${money(tnSum.revenue)} <span class="cruce-s">· ${num(tnSum.orders)} órdenes</span></span></div>
+        <div class="cruce-i"><span class="cruce-l">Cobertura de atribución</span><span class="cruce-v ${cobertura>=90?"cok":cobertura>=60?"cama":"crojo"}">${dec(cobertura,0)}%</span></div>
+      </div>
+      <div class="cruce-n">${cobertura<80?`Los ads solo explican el ${dec(cobertura,0)}% de la facturación. Puede haber ventas no atribuidas (tráfico directo, orgánico) o pérdida de señal en la medición.`:`Buena cobertura: los ads explican la mayor parte de la facturación.`}</div>
+    </div>
+
+    ${tnLost&&tnLost.orders>0?`
+    <div class="perdidas">
+      <div class="perd-t">⚠ Órdenes no concretadas</div>
+      <div class="perd-v">${num(tnLost.orders)} órdenes · ${money(tnLost.revenue)}</div>
+      <div class="perd-n">Gente que llegó al final del checkout y no pagó (pendientes, canceladas, vencidas). Es plata que ya convertiste y se está perdiendo en el último paso.</div>
+    </div>`:""}
+
+    ${tnPayAgg.length?`<p class="eyebrow">Métodos de pago <span style="font-weight:400;color:var(--faint);font-size:12px">· dónde se concreta y dónde se pierde</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Método</th><th>Pagadas</th><th>Facturado</th><th>No concretadas</th><th>Perdido</th><th>Tasa de éxito</th></tr></thead>
+      <tbody>${tnPayAgg.map(p=>{const tot=p.pagadas+p.perdidas;const tasa=tot>0?(p.pagadas/tot)*100:0;return `<tr><td>${payLabel(p.metodo)}</td><td>${num(p.pagadas)}</td><td>${money(p.revPagadas)}</td><td>${num(p.perdidas)}</td><td>${p.perdidas>0?`<span style="color:var(--neg)">${money(p.revPerdidas)}</span>`:"—"}</td><td class="${tasa>=80?"roasG":tasa>=50?"roasM":"roasB"}">${dec(tasa,0)}%</td></tr>`;}).join("")}</tbody>
+    </table></div>`:""}
+
+    ${TN.products&&TN.products.length?`<p class="eyebrow">Productos más vendidos <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por facturación</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Producto</th><th>Unidades</th><th>Facturación</th><th>Precio prom.</th></tr></thead>
+      <tbody>${TN.products.map(p=>`<tr><td>${p.name}</td><td>${num(p.units)}</td><td>${money(p.revenue)}</td><td>${money(p.units>0?p.revenue/p.units:0)}</td></tr>`).join("")}</tbody>
+    </table></div>`:""}
+    `:""}
+
+    <footer>Zimba Digital · se actualiza cada 2 horas, de 8 a 24 h</footer>`;
+
+  attachCharts();
+}
+
+function setView(k){view=k;render();}
+function setCompare(k){compare=k;render();}
+function setCurrency(k){currency=k;render();}
+function setRate(v){
+  const n=Number(v);
+  usdRate=(n>0)?n:1;
+  if(n>0) localStorage.setItem("zimba_usd_"+slug,String(n));
+  render();
+  // devolver el foco al campo tras el re-render (sin timers frágiles)
+  requestAnimationFrame(()=>{const el=document.getElementById("usdRateInput");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}});
+}
+// Cambiar una fecha activa el modo personalizado solo. La otra punta se toma del
+// rango que estabas viendo, así no hay que setear las dos.
+function setCustomFrom(v){
+  const R=currentRange();
+  const to=(view==="custom"&&customTo)?customTo:R.to;
+  customFrom=v; customTo=(to<v)?v:to; view="custom"; render();
+}
+function setCustomTo(v){
+  const R=currentRange();
+  const from=(view==="custom"&&customFrom)?customFrom:R.from;
+  customTo=v; customFrom=(from>v)?v:from; view="custom"; render();
+}
+function setAccount(k){account=k;campaign="Todas";render();}
+function setCampaign(k){campaign=k;render();}
+function sortByCamp(col){sortCamp.dir=sortCamp.col===col?-sortCamp.dir:-1;sortCamp.col=col;render();}
+function sortByCre(col){sortCre.dir=sortCre.col===col?-sortCre.dir:-1;sortCre.col=col;render();}
+
+fetch(`./data/${slug}.json`)
+  .then(r=>{if(!r.ok)throw new Error();return r.json();})
+  .then(d=>{
+    DATA=d;
+    // rate por defecto del cliente (clients.json → usdRate). Si el navegador ya
+    // guardó uno para este cliente, ese pisa al default.
+    const guardado=Number(localStorage.getItem("zimba_usd_"+slug));
+    usdRate=guardado>0?guardado:(Number(DATA.usdRate)>0?Number(DATA.usdRate):1000);
+    render();
+  })
+  .catch(()=>{document.getElementById("app").innerHTML='<div class="empty">Este reporte todavía no tiene datos.</div>';});
+</script>
+</body>
+</html>
