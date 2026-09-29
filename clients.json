@@ -45,6 +45,29 @@
     }
   },
   {
+    "slug": "chillout-uruguay",
+    "name": "Chill Out Uruguay",
+    "objetivoMensual": 10000,
+    "usdRate": 1,
+    "sources": {
+      "meta": {
+        "accounts": [
+          {
+            "id": "act_4317269908572036",
+            "label": "Uruguay",
+            "mode": "sales"
+          }
+        ]
+      },
+      "google": {
+        "enabled": false,
+        "customerId": "",
+        "label": "Google",
+        "mode": "sales"
+      }
+    }
+  },
+  {
     "slug": "bacan",
     "name": "Bacan by Mantra",
     "objetivoMensual": 8000000,
