@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Reporte de campañas</title>
+<link rel="icon" id="fav" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,8 +13,11 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;padding:clamp(20px,4vw,48px);line-height:1.45;font-variant-numeric:tabular-nums}
   .wrap{max-width:1180px;margin:0 auto}
-  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--border)}
-  header h1{font-size:clamp(22px,3vw,30px);font-weight:650;letter-spacing:-.02em}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+  header h1{font-size:clamp(22px,3vw,30px);font-weight:650;letter-spacing:-.02em;display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+  header h1 .logo{height:34px;width:auto;display:block}
+  header h1 .tag{font-weight:600}
+  header h1 .h1sub{color:var(--muted);font-weight:500}
   .stamp{font-size:13px;color:var(--muted);text-align:right}
   .stamp .dot{color:var(--pos)}
   .bar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:12px 0 2px}
@@ -103,6 +107,32 @@ const cap=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
 const ymd=(d)=>d.toISOString().slice(0,10);
 
 const slug=location.pathname.split("/").pop().replace(".html","")||"index";
+
+// ── Tema por cliente ────────────────────────────────────────────────────────
+// Logo, favicon y colores de cada marca. Los clientes sin tema usan el default.
+// Para sumar una marca nueva: agregar una entrada con su slug (el de clients.json).
+const THEMES={
+  chillout:{
+    logo:"https://acdn-us.mitiendanube.com/stores/005/451/862/themes/common/logo-1954107398528691693-1784636622-a191bb7bc6205b5f1ffa20b36180f2241784636622.png",
+    favBg:"#171717", favFg:"#ffffff", favTxt:"C",
+    vars:{"--bg":"#fafaf9","--surface":"#ffffff","--surface-2":"#f4f1ed","--border":"#e9e4dd","--ink":"#171717","--muted":"#78716c","--faint":"#a8a29e","--accent":"#171717"},
+    line:"#6b4f3a", soft:"#dccbb8", hi:"#f6f1ea", grid:"#eee9e2", axis:"#a8a29e",
+    gcolors:{female:"#3b2a20",male:"#a0806a",unknown:"#dccbb8"},
+    dev:["#3b2a20","#6b4f3a","#a0806a","#c4a991","#dccbb8","#ede4d8"],
+  },
+};
+THEMES["chillout-uruguay"]={...THEMES.chillout,tag:"Uruguay"};
+const TH=Object.assign({
+  line:"#2563eb", soft:"#c7d2fe", hi:"#eff6ff", grid:"#e4e7ec", axis:"#98a2b3",
+  gcolors:{female:"#4c1d95",male:"#8b5cf6",unknown:"#c4b5fd"},
+  dev:["#6d28d9","#8b5cf6","#a78bfa","#c4b5fd","#ddd6fe","#ede9fe"],
+},THEMES[slug]||{});
+for(const [k,v] of Object.entries(TH.vars||{}))document.documentElement.style.setProperty(k,v);
+if(TH.favTxt){
+  const favSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${TH.favBg}"/><text x="32" y="45" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="38" text-anchor="middle" fill="${TH.favFg}">${TH.favTxt}</text></svg>`;
+  document.getElementById("fav").href="data:image/svg+xml,"+encodeURIComponent(favSvg);
+}
+
 let DATA=null, view="mes", account="Todas", campaign="Todas";
 let sortCamp={col:"spend",dir:-1}, sortCre={col:"roas",dir:-1};
 let customFrom=null, customTo=null; // rango personalizado (view==="custom")
@@ -222,20 +252,20 @@ function lineChart(series,fmt,alto){
   const x=(i)=>padL+(i*(W-padL-padR))/Math.max(series.length-1,1);
   const y=(v)=>H-padB-(v/max)*(H-padT-padB);
   const pts=series.map((d,i)=>`${x(i)},${y(d.value)}`).join(" ");
-  const gy=[0,max/4,max/2,max*0.75,max].map(v=>`<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="#e4e7ec"/><text x="${padL-10}" y="${y(v)+5}" fill="#98a2b3" font-size="13" text-anchor="end">${fmt(v)}</text>`).join("");
+  const gy=[0,max/4,max/2,max*0.75,max].map(v=>`<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="${TH.grid}"/><text x="${padL-10}" y="${y(v)+5}" fill="${TH.axis}" font-size="13" text-anchor="end">${fmt(v)}</text>`).join("");
   const step=Math.ceil(series.length/14||1);
-  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-10}" fill="#98a2b3" font-size="12" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
-  const dots=series.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.value)}" r="3.5" fill="#2563eb"/>`).join("");
+  const lbl=series.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-10}" fill="${TH.axis}" font-size="12" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
+  const dots=series.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.value)}" r="3.5" fill="${TH.line}"/>`).join("");
   // datos para el tooltip: coordenadas + texto ya formateado
   const meta=series.map((d,i)=>({x:x(i),y:y(d.value),t:`${d.date.slice(8)}/${d.date.slice(5,7)} · ${fmt(d.value)}`}));
   const json=JSON.stringify(meta).replace(/'/g,"&#39;");
   return `<div class="chartbox" data-pts='${json}' data-w="${W}" data-h="${H}">
     <svg viewBox="0 0 ${W} ${H}" width="100%">
       ${gy}
-      <line class="gd" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="#c7d2fe" stroke-width="1.5" opacity="0"/>
-      <polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <line class="gd" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="${TH.soft}" stroke-width="1.5" opacity="0"/>
+      <polyline points="${pts}" fill="none" stroke="${TH.line}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
       ${dots}${lbl}
-      <circle class="hl" cx="0" cy="0" r="6" fill="#2563eb" stroke="#fff" stroke-width="2.5" opacity="0"/>
+      <circle class="hl" cx="0" cy="0" r="6" fill="${TH.line}" stroke="#fff" stroke-width="2.5" opacity="0"/>
     </svg>
     <div class="tip"></div>
   </div>`;
@@ -271,8 +301,8 @@ function momChart(groups,curName,prevName){
     const mx=Math.max(g.c,g.p,1);const h=(v)=>Math.max((v/mx)*88,3);
     return `<div class="momcol"><div class="t">${g.k}</div>
       <div class="bars">
-        <div class="barwrap"><div class="v" style="color:var(--muted)">${g.fmt(g.p)}</div><div style="width:36px;height:${h(g.p)}px;background:#c7d2fe;border-radius:5px 5px 0 0"></div><div class="m">${prevName}</div></div>
-        <div class="barwrap"><div class="v" style="color:var(--ink);font-weight:600">${g.fmt(g.c)}</div><div style="width:36px;height:${h(g.c)}px;background:#2563eb;border-radius:5px 5px 0 0"></div><div class="m">${curName}</div></div>
+        <div class="barwrap"><div class="v" style="color:var(--muted)">${g.fmt(g.p)}</div><div style="width:36px;height:${h(g.p)}px;background:${TH.soft};border-radius:5px 5px 0 0"></div><div class="m">${prevName}</div></div>
+        <div class="barwrap"><div class="v" style="color:var(--ink);font-weight:600">${g.fmt(g.c)}</div><div style="width:36px;height:${h(g.c)}px;background:${TH.line};border-radius:5px 5px 0 0"></div><div class="m">${curName}</div></div>
       </div></div>`;
   }).join("")+`</div>`;
 }
@@ -283,7 +313,7 @@ function sortRows(rows,state){return [...rows].sort((a,b)=>{const x=a[state.col]
 // demografía/dispositivo
 const AGES=["18-24","25-34","35-44","45-54","55-64","65+"];
 const GENDERS=["female","male","unknown"];
-const GCOLORS={female:"#4c1d95",male:"#8b5cf6",unknown:"#c4b5fd"};
+const GCOLORS=TH.gcolors;
 const GLABELS={female:"Mujeres",male:"Hombres",unknown:"Sin dato"};
 function demoByAge(rows,metric){
   const m={};for(const a of AGES)m[a]={female:0,male:0,unknown:0};
@@ -307,7 +337,7 @@ function ageGenderChart(byAge){
 function deviceChart(agg){
   if(!agg.length)return '<div class="empty">Sin datos.</div>';
   const total=agg.reduce((s,d)=>s+d.v,0);
-  const colors=["#6d28d9","#8b5cf6","#a78bfa","#c4b5fd","#ddd6fe","#ede9fe"];
+  const colors=TH.dev;
   let acc=0;const R=52,C=70,SW=22;const circ=2*Math.PI*R;
   const segs=agg.map((d,i)=>{const frac=d.v/total;const dash=frac*circ;const off=circ*0.25-acc*circ;acc+=frac;return `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="${SW}" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${off}"/>`;}).join("");
   const legend=agg.map((d,i)=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin:4px 0"><span style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]}"></span>${d.device} <b style="color:var(--ink);margin-left:auto;font-weight:600">${((d.v/total)*100).toFixed(1)}%</b></div>`).join("");
@@ -315,6 +345,7 @@ function deviceChart(agg){
 }
 
 function render(){
+  document.title=DATA.client+" · Reporte de campañas";
   const mode=currentMode();
   const R=currentRange();
   const cRows=filt(DATA.campaignRows,R.from,R.to);
@@ -391,7 +422,7 @@ function render(){
     const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
     campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Leads","leads",sortCamp,"sortByCamp")}${th("$/Form","costPerLead",sortCamp,"sortByCamp")}${th("Mensajes","messages",sortCamp,"sortByCamp")}${th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp")}`;
-    campBody=byC.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td><td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
+    campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td><td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
     campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td><td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`;
     // gráficos: leads y mensajes por día
     chartsHTML=`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>
@@ -420,7 +451,7 @@ function render(){
     const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
     campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Compras","purchases",sortCamp,"sortByCamp")}${th("ROAS","roas",sortCamp,"sortByCamp")}${th("Valor","revenue",sortCamp,"sortByCamp")}${th("Costo/compra","costPerPurchase",sortCamp,"sortByCamp")}`;
-    campBody=byC.map(c=>`<tr${campaign===c.name?' style="background:#eff6ff"':''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
+    campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
     campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${t.purchases>0?money(t.costPerPurchase):"—"}</td>`;
     chartsHTML=`<p class="eyebrow">ROAS por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.spend>0?o.revenue/o.spend:0),(v)=>dec(v,1))}</div>
       <p class="eyebrow">Ingreso por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.revenue),compact)}</div>`;
@@ -473,8 +504,13 @@ function render(){
   const gAdGroups=isGoogle?[...groupBy(gFilt(DATA.googleAdGroups),"ad_group_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,20):[];
   const gKeywords=isGoogle?[...groupBy(gFilt(DATA.googleKeywords),"keyword").entries()].map(([name,rows])=>({name,adgroup:rows[0].ad_group_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,25):[];
 
+  // Título: con logo si la marca tiene tema, si no el nombre en texto.
+  const titulo=TH.logo
+    ?`<img class="logo" src="${TH.logo}" alt="${DATA.client}" onerror="this.outerHTML='${DATA.client}'">${TH.tag?`<span class="tag">${TH.tag}</span>`:""}`
+    :DATA.client;
+
   document.getElementById("app").innerHTML=`
-    <header><h1>${DATA.client} · Reporte de campañas</h1>
+    <header><h1>${titulo}<span class="h1sub">· Reporte de campañas</span></h1>
       <div class="stamp"><span class="dot">●</span> Datos del ${fFecha(R.from)} al ${fFecha(R.to)}<br><span style="color:var(--faint)">Actualizado ${cuandoAct}</span></div></header>
     ${acctBar}
     <div class="bar"><span class="lbl">Período</span>${viewOpts.map(o=>`<span class="pill ${view===o.key?"on":""}" onclick="setView('${o.key}')">${o.label}</span>`).join("")}</div>
@@ -566,7 +602,7 @@ function render(){
     </table></div>`:""}
     `:""}
 
-    <footer>Zimba Digital · se actualiza cada 2 horas, de 8 a 24 h</footer>`;
+    <footer>Zimba Digital · se actualiza varias veces por día</footer>`;
 
   attachCharts();
 }
