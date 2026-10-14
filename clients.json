@@ -94,5 +94,27 @@
         "tokenEnv": "TIENDANUBE_TOKEN_BACAN"
       }
     }
+  },
+  {
+    "slug": "jufre",
+    "name": "Jufré House 302",
+    "usdRate": 1350,
+    "sources": {
+      "meta": {
+        "accounts": [
+          {
+            "id": "act_1606509943733760",
+            "label": "Jufré House",
+            "mode": "leads"
+          }
+        ]
+      },
+      "google": {
+        "enabled": false,
+        "customerId": "",
+        "label": "Google",
+        "mode": "sales"
+      }
+    }
   }
 ]
