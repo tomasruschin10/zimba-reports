@@ -408,11 +408,13 @@ function render(){
   // ===== KPIs, tabla, gráficos, creatives, demo según MODO =====
   let kpis, campHead, campBody, campFoot, chartsHTML, momGroups, creHead, creBody, demoMetric, demoTitle;
 
+  // ¿la cuenta activa tiene leads de formulario? (Jufre solo tiene mensajes de WhatsApp)
+  const hasForm=DATA.campaignRows.some(r=>acctOk(r)&&(r.leads||0)>0);
   if(mode==="leads"){
     kpis=[
       {l:"Inversión",v:money(t.spend),c:t.spend,p:tPrev.spend,dir:0},
-      {l:"Leads",v:num(t.leads),c:t.leads,p:tPrev.leads,dir:1},
-      {l:"$/Form",v:money(t.costPerLead),c:t.costPerLead,p:tPrev.costPerLead,dir:-1},
+      ...(hasForm?[{l:"Leads",v:num(t.leads),c:t.leads,p:tPrev.leads,dir:1},
+      {l:"$/Form",v:money(t.costPerLead),c:t.costPerLead,p:tPrev.costPerLead,dir:-1}]:[]),
       {l:"Mensajes",v:num(t.messages),c:t.messages,p:tPrev.messages,dir:1},
       {l:"Costo por mensaje",v:money(t.costPerMsg),c:t.costPerMsg,p:tPrev.costPerMsg,dir:-1},
       {l:"CTR",v:dec(t.ctr,1)+"%",c:t.ctr,p:tPrev.ctr,dir:1},
@@ -421,20 +423,20 @@ function render(){
     // tabla campaña (modo leads)
     const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
-    campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Leads","leads",sortCamp,"sortByCamp")}${th("$/Form","costPerLead",sortCamp,"sortByCamp")}${th("Mensajes","messages",sortCamp,"sortByCamp")}${th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp")}`;
-    campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td><td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
-    campFoot=`<td>Total</td><td>${money(t.spend)}</td><td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td><td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`;
+    campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${hasForm?th("Leads","leads",sortCamp,"sortByCamp")+th("$/Form","costPerLead",sortCamp,"sortByCamp"):""}${th("Mensajes","messages",sortCamp,"sortByCamp")}${th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp")}`;
+    campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td>${hasForm?`<td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td>`:""}<td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
+    campFoot=`<td>Total</td><td>${money(t.spend)}</td>${hasForm?`<td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td>`:""}<td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`;
     // gráficos: leads y mensajes por día
-    chartsHTML=`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>
+    chartsHTML=`${hasForm?`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>`:""}
       <p class="eyebrow">Mensajes por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.messages),(v)=>num(v))}</div>`;
-    momGroups=[{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)},{k:"Mensajes",c:curM.messages,p:prevM.messages,fmt:(v)=>num(v)},{k:"Costo/mensaje",c:curM.costPerMsg,p:prevM.costPerMsg,fmt:(v)=>money(v)}];
+    momGroups=[...(hasForm?[{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)}]:[]),{k:"Mensajes",c:curM.messages,p:prevM.messages,fmt:(v)=>num(v)},{k:"Costo/mensaje",c:curM.costPerMsg,p:prevM.costPerMsg,fmt:(v)=>money(v)}];
     // creatives por mensajes
     let cre=[...groupBy(aRows,"ad_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(c=>c.spend>0);
     const vals=cre.map(c=>c.messages);const mn=Math.min(...vals,0),mx=Math.max(...vals,1);
     if(sortCre.col==="roas")sortCre.col="messages";
     cre=sortRows(cre,sortCre).slice(0,15);
-    creHead=`<th></th>${th("Creativo","name",sortCre,"sortByCre","left")}${th("Campaña","campaign",sortCre,"sortByCre","left")}${th("Inversión","spend",sortCre,"sortByCre")}${th("Mensajes","messages",sortCre,"sortByCre")}${th("Costo/msj","costPerMsg",sortCre,"sortByCre")}${th("Leads","leads",sortCre,"sortByCre")}${th("CTR","ctr",sortCre,"sortByCre")}`;
-    creBody=cre.map(c=>{const tn=mx>mn?(c.messages-mn)/(mx-mn):1;const th2=(DATA.thumbnails&&DATA.thumbnails[c.name])?`<img src="${DATA.thumbnails[c.name]}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block" loading="lazy">`:`<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-2)"></div>`;return `<tr style="background:${heatColor(tn)}"><td style="width:52px">${th2}</td><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td><td style="font-weight:600">${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td><td>${num(c.leads)}</td><td>${dec(c.ctr,1)}%</td></tr>`;}).join("");
+    creHead=`<th></th>${th("Creativo","name",sortCre,"sortByCre","left")}${th("Campaña","campaign",sortCre,"sortByCre","left")}${th("Inversión","spend",sortCre,"sortByCre")}${th("Mensajes","messages",sortCre,"sortByCre")}${th("Costo/msj","costPerMsg",sortCre,"sortByCre")}${hasForm?th("Leads","leads",sortCre,"sortByCre"):""}${th("CTR","ctr",sortCre,"sortByCre")}`;
+    creBody=cre.map(c=>{const tn=mx>mn?(c.messages-mn)/(mx-mn):1;const th2=(DATA.thumbnails&&DATA.thumbnails[c.name])?`<img src="${DATA.thumbnails[c.name]}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block" loading="lazy">`:`<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-2)"></div>`;return `<tr style="background:${heatColor(tn)}"><td style="width:52px">${th2}</td><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td><td style="font-weight:600">${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td>${hasForm?`<td>${num(c.leads)}</td>`:""}<td>${dec(c.ctr,1)}%</td></tr>`;}).join("");
     demoMetric="messages";demoTitle="Mensajes por audiencia";
   } else {
     kpis=[
@@ -466,7 +468,7 @@ function render(){
   }
 
   const kpiCards=kpis.map(k=>`<div class="metric"><div class="label">${k.l}</div><div class="value ${k.cls||''}">${k.v}</div>${deltaBadge(k.c,k.p,k.dir)}</div>`).join("");
-  const colspan=mode==="leads"?8:10;
+  const colspan=mode==="leads"?(hasForm?8:7):10;
 
   // demo/device (métrica según modo)
   const demoRows=filtAcct(DATA.demoRows,R.from,R.to);
@@ -517,7 +519,7 @@ function render(){
     ${filtrosBar}
 
     ${currency==="USD"?`<div class="aviso" style="margin-top:14px">Valores convertidos a <b>USD</b> a un tipo de cambio de <b>$${num(usdRate)}</b> (editable arriba). Es una conversión de referencia con la cotización de hoy: montos de fechas pasadas no reflejan el dólar de ese día.</div>`:""}
-    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${account==="Mayorista"?"leads y mensajes":"venta"} · vs período anterior</span></p>
+    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${mode==="leads"?(hasForm?"leads y mensajes":"mensajes"):"venta"} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
 
     <p class="eyebrow">Por campaña</p>
@@ -643,6 +645,9 @@ fetch(`./data/${slug}.json`)
     // guardó uno para este cliente, ese pisa al default.
     const guardado=Number(localStorage.getItem("zimba_usd_"+slug));
     usdRate=guardado>0?guardado:(Number(DATA.usdRate)>0?Number(DATA.usdRate):1000);
+    // Con una sola cuenta (ej. Jufre, solo leads) o sin cuentas de venta, "Todas"
+    // quedaría vacío: arrancamos directo en la primera cuenta.
+    if(DATA.accounts.length===1||salesAccounts().length===0)account=DATA.accounts[0];
     render();
   })
   .catch(()=>{document.getElementById("app").innerHTML='<div class="empty">Este reporte todavía no tiene datos.</div>';});
