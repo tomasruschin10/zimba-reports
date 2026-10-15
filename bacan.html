@@ -137,13 +137,15 @@ let DATA=null, view="mes", account="Todas", campaign="Todas";
 let sortCamp={col:"spend",dir:-1}, sortCre={col:"roas",dir:-1};
 let customFrom=null, customTo=null; // rango personalizado (view==="custom")
 let compare="prev"; // prev | month | year | none
+// ¿la cuenta es de Google? (puede llamarse "Google" o tener nombre propio, ej. "Mantra")
+function isGoogleAcct(a){return a==="Google"||DATA.accountPlatforms?.[a]==="google";}
 let brandMode="all"; // all | sin | solo — campaña de brand de Google (clients.json → google.brandMatch)
 function isBrand(r){
-  if(!DATA.brandMatch||r.account!=="Google")return false;
+  if(!DATA.brandMatch||!isGoogleAcct(r.account))return false;
   try{return new RegExp(DATA.brandMatch,"i").test(r.campaign_name||"");}catch(e){return false;}
 }
 function brandOk(r){
-  if(brandMode==="all"||r.account!=="Google")return true;
+  if(brandMode==="all"||!isGoogleAcct(r.account))return true;
   return brandMode==="sin"?!isBrand(r):isBrand(r);
 }
 // Moneda: ARS por defecto. El rate default sale de clients.json (data.usdRate);
@@ -393,6 +395,7 @@ function render(){
   const platLabel=(k)=>{
     if(k==="Todas")return "Todas";
     if(k==="Google")return "Google ads";
+    if(isGoogleAcct(k))return "Google ads - "+k;
     if(k==="TikTok")return "TikTok ads";
     if(k==="Pinterest")return "Pinterest ads";
     return "Meta ads - "+k;
@@ -410,7 +413,7 @@ function render(){
   const monthOpts=[...new Set(DATA.campaignRows.map(r=>r.date.slice(0,7)))].sort().reverse().map(k=>{
     const [yy,mm]=k.split("-").map(Number);const last=new Date(Date.UTC(yy,mm,0)).toISOString().slice(0,10);
     return {k,l:`${MES[mm-1]} ${yy}`,from:k+"-01",to:last<hoyStr?last:hoyStr};});
-  const showBrand=!!DATA.brandMatch&&(account==="Google"||account==="Todas");
+  const showBrand=!!DATA.brandMatch&&(isGoogleAcct(account)||account==="Todas");
   const filtrosBar=`<div class="bar"><span class="lbl">Filtros</span>`+
     `<select onchange="setCampaign(this.value)" title="Campaña"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
       allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select>`+
@@ -543,8 +546,8 @@ function render(){
   const cobertura=hasTN&&tnSum.revenue>0?(adsRev/tnSum.revenue)*100:0;
 
   // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
-  const isGoogle=(account==="Google");
-  const gFilt=(rows)=>(rows||[]).filter(r=>brandOk({...r,account:"Google"})&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
+  const isGoogle=isGoogleAcct(account);
+  const gFilt=(rows)=>(rows||[]).filter(r=>r.account===account&&brandOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
   const gTypeRows=isGoogle?[...groupBy(cRows,"channel_type").entries()].map(([name,rows])=>({name,...sumRows(rows)})).sort((a,b)=>b.spend-a.spend):[];
   const gAdGroups=isGoogle?[...groupBy(gFilt(DATA.googleAdGroups),"ad_group_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,20):[];
   const gKeywords=isGoogle?[...groupBy(gFilt(DATA.googleKeywords),"keyword").entries()].map(([name,rows])=>({name,adgroup:rows[0].ad_group_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,25):[];
