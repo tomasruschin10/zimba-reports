@@ -84,12 +84,26 @@
           }
         ]
       },
-      "google": {
-        "enabled": false,
-        "customerId": "PONER_CUSTOMER_ID_BACAN",
-        "label": "Google",
-        "mode": "sales"
-      },
+      "google": [
+        {
+          "enabled": true,
+          "customerId": "2707592747",
+          "label": "BacanByMantra",
+          "mode": "sales"
+        },
+        {
+          "enabled": true,
+          "customerId": "6001698719",
+          "label": "Mantra",
+          "mode": "sales"
+        },
+        {
+          "enabled": true,
+          "customerId": "9485970799",
+          "label": "Briut",
+          "mode": "sales"
+        }
+      ],
       "tiendanube": {
         "enabled": true,
         "storeId": "2666512",
