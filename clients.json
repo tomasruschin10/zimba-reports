@@ -4,6 +4,7 @@
     "name": "Chill Out",
     "objetivoMensual": 20000000,
     "usdRate": 1350,
+    "desde": "2026-07-01",
     "sources": {
       "meta": {
         "accounts": [
@@ -23,7 +24,8 @@
         "enabled": true,
         "customerId": "1484061288",
         "label": "Google",
-        "mode": "sales"
+        "mode": "sales",
+        "brandMatch": "brand term"
       },
       "tiktok": {
         "enabled": true,
