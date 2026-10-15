@@ -29,6 +29,21 @@ function fetchWindow() {
   return { since: ymd(start), until: ymd(now) };
 }
 
+// Último reporte publicado de un cliente. Se usa como respaldo cuando una
+// consulta pesada falla (ej. nivel anuncio de Minorista): en vez de dejar el
+// reporte sin creativos, reusamos los del build anterior. Si no se puede leer,
+// devuelve null y el build sigue como siempre.
+const PREV_BASE = process.env.REPORTS_BASE_URL || "https://reportes.zimba.com.ar/data/";
+async function loadPrev(slug) {
+  try {
+    const res = await fetch(`${PREV_BASE}${slug}.json?t=${Date.now()}`, { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function buildClient(client) {
   // Tipo de cambio por defecto del cliente (clients.json → usdRate). NO se usa
   // para convertir en el build; se guarda en el JSON como valor inicial del
@@ -44,6 +59,7 @@ async function buildClient(client) {
   const adRows = [];        // {account, date, campaign_name, adset_name, ad_name, ...}
   const demoRows = [];      // {account, date, age, gender, ...}
   const deviceRows = [];    // {account, date, device, ...}
+  let prev; // último reporte publicado (se baja solo si hace falta)
   let thumbnails = {};      // { ad_name: thumbnail_url }
   const accounts = [];
   const accountModes = {};
@@ -62,10 +78,21 @@ async function buildClient(client) {
       // cuentas grandes. Va en su propio try para que un fallo acá no borre la
       // cuenta entera del reporte — el resumen y las campañas ya están traídos.
       let ads = [];
+      let adsDeRespaldo = false;
       try {
         ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
-        for (const r of ads) adRows.push({ account: acc.label, ...r });
-      } catch (e) { console.warn(`  ads ${acc.label}: ${e.message}`); }
+      } catch (e) {
+        console.warn(`  ads ${acc.label}: ${e.message}`);
+        // Respaldo: creativos de esta cuenta en el último reporte publicado.
+        if (prev === undefined) prev = await loadPrev(client.slug);
+        const viejos = (prev?.adRows || []).filter((r) => r.account === acc.label && r.date >= since);
+        if (viejos.length) {
+          ads = viejos.map(({ account, ...r }) => r);
+          adsDeRespaldo = true;
+          console.warn(`  ads ${acc.label}: uso ${ads.length} filas del reporte anterior (${prev.updatedAt})`);
+        }
+      }
+      for (const r of ads) adRows.push({ account: acc.label, ...r });
 
       // Breakdowns (best-effort: si alguno falla, seguimos sin romper)
       try {
@@ -76,13 +103,21 @@ async function buildClient(client) {
         const dev = await fetchMetaDevices({ adAccountId: acc.id }, since, until);
         for (const r of dev) deviceRows.push({ account: acc.label, ...r });
       } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
-      try {
-        const adNames = ads.map((r) => r.ad_name);
-        const th = await fetchMetaThumbnails({ adAccountId: acc.id }, adNames);
-        thumbnails = { ...thumbnails, ...th };
-      } catch (e) { console.warn(`  thumbnails ${acc.label}: ${e.message}`); }
+      const adNames = [...new Set(ads.map((r) => r.ad_name))];
+      if (adNames.length) { // sin anuncios no pedimos miniaturas (si no, trae TODOS los de la cuenta)
+        try {
+          const th = await fetchMetaThumbnails({ adAccountId: acc.id }, adNames);
+          thumbnails = { ...thumbnails, ...th };
+        } catch (e) { console.warn(`  thumbnails ${acc.label}: ${e.message}`); }
+        // Las miniaturas que falten, del reporte anterior.
+        const faltan = adNames.filter((n) => !thumbnails[n]);
+        if (faltan.length) {
+          if (prev === undefined) prev = await loadPrev(client.slug);
+          for (const n of faltan) if (prev?.thumbnails?.[n]) thumbnails[n] = prev.thumbnails[n];
+        }
+      }
 
-      console.log(`  ${client.slug}/${acc.label}: ${camps.length} campaña, ${ads.length} ad, ${demoRows.length} demo, ${deviceRows.length} device`);
+      console.log(`  ${client.slug}/${acc.label}: ${camps.length} campaña, ${ads.length} ad${adsDeRespaldo ? " (respaldo)" : ""}, ${demoRows.length} demo, ${deviceRows.length} device`);
     } catch (e) {
       console.warn(`  ✗ Meta ${client.slug}/${acc.label}: ${e.message} (se omite esta cuenta, sigue el resto)`);
     }
