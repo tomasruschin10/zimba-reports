@@ -47,6 +47,7 @@ async function buildClient(client) {
   let thumbnails = {};      // { ad_name: thumbnail_url }
   const accounts = [];
   const accountModes = {};
+  const accountPlatforms = {}; // label → "google" (para reconocer cuentas de Google con cualquier nombre)
 
   // ── Meta (cada cuenta falla sola: si una se cae, las demás y el resto de
   //    fuentes siguen; el cliente se genera igual con lo que haya) ──
@@ -87,19 +88,23 @@ async function buildClient(client) {
     }
   }
 
-  // ── Google Ads (opcional; solo si está habilitado en clients.json) ──
+  // ── Google Ads (opcional). `google` puede ser un objeto (una cuenta) o una
+  // lista de cuentas (ej. Bacan: BacanByMantra, Mantra y Briut). ──
   let googleAdGroups = [];
   let googleKeywords = [];
-  const g = client.sources.google;
-  if (g?.enabled && g.customerId) {
+  const gSrc = client.sources.google;
+  const gList = Array.isArray(gSrc) ? gSrc : gSrc ? [gSrc] : [];
+  for (const g of gList) {
+    if (!g?.enabled || !g.customerId) continue;
     const label = g.label || "Google";
     try {
       const { campaigns, adGroups, keywords } = await fetchGoogleAll({ customerId: g.customerId }, since, until);
       for (const r of campaigns) campaignRows.push({ account: label, ...r });
-      googleAdGroups = adGroups.map((r) => ({ account: label, ...r }));
-      googleKeywords = keywords.map((r) => ({ account: label, ...r }));
+      googleAdGroups.push(...adGroups.map((r) => ({ account: label, ...r })));
+      googleKeywords.push(...keywords.map((r) => ({ account: label, ...r })));
       accounts.push(label);
       accountModes[label] = g.mode || "sales";
+      accountPlatforms[label] = "google";
       console.log(`  ${client.slug}/${label}: ${campaigns.length} campaña, ${adGroups.length} adgroup, ${keywords.length} keyword (Google Ads)`);
     } catch (e) {
       console.warn(`  Google Ads ${label}: ${e.message}`);
@@ -173,6 +178,7 @@ async function buildClient(client) {
     updatedAt: new Date().toISOString(),
     accounts,
     accountModes,
+    accountPlatforms,
     campaignRows,
     adRows,
     demoRows,
@@ -180,7 +186,7 @@ async function buildClient(client) {
     thumbnails,
     googleAdGroups,
     googleKeywords,
-    brandMatch: client.sources.google?.brandMatch || "",
+    brandMatch: (Array.isArray(gSrc) ? gSrc.find((x) => x.brandMatch)?.brandMatch : gSrc?.brandMatch) || "",
     tienda,
   };
 }
@@ -189,7 +195,7 @@ async function buildClient(client) {
 // modo 'sales', que son las comparables por ROAS). Meta = todo lo que no sea
 // Google/TikTok/Pinterest.
 function agencyDaily(report) {
-  const platOf = (a) => (a === "Google" ? "Google" : a === "TikTok" ? "TikTok" : a === "Pinterest" ? "Pinterest" : "Meta");
+  const platOf = (a) => (a === "Google" || report.accountPlatforms?.[a] === "google" ? "Google" : a === "TikTok" ? "TikTok" : a === "Pinterest" ? "Pinterest" : "Meta");
   const salesAccts = report.accounts.filter((a) => (report.accountModes[a] || "sales") === "sales");
   const daily = {};
   for (const r of report.campaignRows) {
