@@ -35,7 +35,10 @@ async function buildClient(client) {
   // campito del dashboard, que es donde ocurre toda la conversión.
   const usdRate = Number(client.usdRate) > 0 ? Number(client.usdRate) : 1000;
   const meta = client.sources.meta;
-  const { since, until } = fetchWindow();
+  const win = fetchWindow();
+  // `desde` en clients.json fija un piso de historia (ej. "2026-07-01" para ver julio).
+  const since = client.desde && client.desde < win.since ? client.desde : win.since;
+  const until = win.until;
 
   const campaignRows = []; // {account, date, campaign_name, ...}
   const adRows = [];        // {account, date, campaign_name, adset_name, ad_name, ...}
@@ -177,6 +180,7 @@ async function buildClient(client) {
     thumbnails,
     googleAdGroups,
     googleKeywords,
+    brandMatch: client.sources.google?.brandMatch || "",
     tienda,
   };
 }
