@@ -137,6 +137,15 @@ let DATA=null, view="mes", account="Todas", campaign="Todas";
 let sortCamp={col:"spend",dir:-1}, sortCre={col:"roas",dir:-1};
 let customFrom=null, customTo=null; // rango personalizado (view==="custom")
 let compare="prev"; // prev | month | year | none
+let brandMode="all"; // all | sin | solo — campaña de brand de Google (clients.json → google.brandMatch)
+function isBrand(r){
+  if(!DATA.brandMatch||r.account!=="Google")return false;
+  try{return new RegExp(DATA.brandMatch,"i").test(r.campaign_name||"");}catch(e){return false;}
+}
+function brandOk(r){
+  if(brandMode==="all"||r.account!=="Google")return true;
+  return brandMode==="sin"?!isBrand(r):isBrand(r);
+}
 // Moneda: ARS por defecto. El rate default sale de clients.json (data.usdRate);
 // si el usuario lo cambia en pantalla, se guarda en SU navegador (localStorage).
 let currency="ARS"; // ARS | USD
@@ -166,7 +175,7 @@ function acctOk(r){
   if(account==="Todas")return salesAccounts().includes(r.account);
   return r.account===account;
 }
-function filt(rows,from,to){return rows.filter(r=>acctOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,from,to));}
+function filt(rows,from,to){return rows.filter(r=>acctOk(r)&&brandOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,from,to));}
 function filtAcct(rows,from,to){return (rows||[]).filter(r=>acctOk(r)&&inRange(r.date,from,to));}
 
 function fixedRanges(today=new Date()){
@@ -391,19 +400,29 @@ function render(){
   const hoyStr=ymd(new Date());
   const acctBar=DATA.accounts.length>1?`<div class="bar"><span class="lbl">Cuenta</span>`+
     [{k:"Todas"},...DATA.accounts.map(a=>({k:a}))].map(o=>`<span class="pill ${account===o.k?"on":""}" onclick="setAccount('${o.k}')">${platLabel(o.k)}</span>`).join("")+`</div>`:"";
-  const allCampNames=[...new Set(DATA.campaignRows.filter(r=>acctOk(r)).map(r=>r.campaign_name))].sort();
+  const allCampNames=[...new Set(DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)).map(r=>r.campaign_name))].sort();
   const cmpOpts=[{k:"prev",l:"vs período anterior"},{k:"month",l:"vs mes anterior"},{k:"year",l:"vs año anterior"},{k:"none",l:"sin comparar"}];
   const sinPrev=compare!=="none"&&prevRows.length===0;
   // Una sola fila con campaña + fechas + comparación (antes eran tres filas).
   // Las fechas muestran siempre el rango activo: tocar una pasa a personalizado.
+  // meses con datos (para elegir uno entero, ej. julio)
+  const MES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const monthOpts=[...new Set(DATA.campaignRows.map(r=>r.date.slice(0,7)))].sort().reverse().map(k=>{
+    const [yy,mm]=k.split("-").map(Number);const last=new Date(Date.UTC(yy,mm,0)).toISOString().slice(0,10);
+    return {k,l:`${MES[mm-1]} ${yy}`,from:k+"-01",to:last<hoyStr?last:hoyStr};});
+  const showBrand=!!DATA.brandMatch&&(account==="Google"||account==="Todas");
   const filtrosBar=`<div class="bar"><span class="lbl">Filtros</span>`+
     `<select onchange="setCampaign(this.value)" title="Campaña"><option ${campaign==="Todas"?"selected":""}>Todas</option>`+
       allCampNames.map(n=>`<option ${campaign===n?"selected":""}>${n}</option>`).join("")+`</select>`+
     `<span class="sep"></span>`+
+    `<select onchange="setMonth(this.value)" title="Mes"><option value="">Mes…</option>`+
+      monthOpts.map(m=>`<option value="${m.k}" ${view==="custom"&&R.from===m.from&&R.to===m.to?"selected":""}>${m.l}</option>`).join("")+`</select>`+
     `<input type="date" class="dt" value="${R.from}" max="${hoyStr}" onchange="setCustomFrom(this.value)">`+
     `<span style="color:var(--faint)">→</span>`+
     `<input type="date" class="dt" value="${R.to}" max="${hoyStr}" onchange="setCustomTo(this.value)">`+
     (view==="custom"?`<span style="font-size:12px;color:var(--accent);font-weight:600">personalizado</span>`:"")+
+    (showBrand?`<span class="sep"></span><select onchange="setBrand(this.value)" title="Campaña de marca (Google)">`+
+      [{k:"all",l:"Google: con Brand Term"},{k:"sin",l:"Google: sin Brand Term"},{k:"solo",l:"Google: solo Brand Term"}].map(o=>`<option value="${o.k}" ${brandMode===o.k?"selected":""}>${o.l}</option>`).join("")+`</select>`:"")+
     `<span class="sep"></span>`+
     `<select onchange="setCompare(this.value)" title="Comparación">`+
       cmpOpts.map(o=>`<option value="${o.k}" ${compare===o.k?"selected":""}>${o.l}</option>`).join("")+`</select>`+
@@ -445,7 +464,7 @@ function render(){
       {l:"CPC",v:money2(t.cpc),c:t.cpc,p:tPrev.cpc,dir:-1},
     ];
     // tabla campaña (modo leads)
-    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
+    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
     campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${hasForm?th("Leads","leads",sortCamp,"sortByCamp")+th("$/Form","costPerLead",sortCamp,"sortByCamp"):""}${th("Mensajes","messages",sortCamp,"sortByCamp")}${th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp")}`;
     campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td>${hasForm?`<td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td>`:""}<td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
@@ -474,7 +493,7 @@ function render(){
       {l:"CPC",v:money2(t.cpc),c:t.cpc,p:tPrev.cpc,dir:-1},
       {l:"Conversion rate",v:dec(t.convRate,1)+"%",c:t.convRate,p:tPrev.convRate,dir:1},
     ];
-    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&inRange(r.date,R.from,R.to));
+    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
     campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Compras","purchases",sortCamp,"sortByCamp")}${th("ROAS","roas",sortCamp,"sortByCamp")}${th("Valor","revenue",sortCamp,"sortByCamp")}${th("Costo/compra","costPerPurchase",sortCamp,"sortByCamp")}`;
     campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
@@ -525,7 +544,7 @@ function render(){
 
   // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
   const isGoogle=(account==="Google");
-  const gFilt=(rows)=>(rows||[]).filter(r=>(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
+  const gFilt=(rows)=>(rows||[]).filter(r=>brandOk({...r,account:"Google"})&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
   const gTypeRows=isGoogle?[...groupBy(cRows,"channel_type").entries()].map(([name,rows])=>({name,...sumRows(rows)})).sort((a,b)=>b.spend-a.spend):[];
   const gAdGroups=isGoogle?[...groupBy(gFilt(DATA.googleAdGroups),"ad_group_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,20):[];
   const gKeywords=isGoogle?[...groupBy(gFilt(DATA.googleKeywords),"keyword").entries()].map(([name,rows])=>({name,adgroup:rows[0].ad_group_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,25):[];
@@ -661,6 +680,13 @@ function setCustomTo(v){
 }
 function setAccount(k){account=k;campaign="Todas";render();}
 function setCampaign(k){campaign=k;render();}
+function setBrand(k){brandMode=k;campaign="Todas";render();}
+function setMonth(k){
+  if(!k)return;
+  const [yy,mm]=k.split("-").map(Number);
+  const last=new Date(Date.UTC(yy,mm,0)).toISOString().slice(0,10);const hoy=ymd(new Date());
+  customFrom=k+"-01";customTo=last<hoy?last:hoy;view="custom";render();
+}
 function sortByCamp(col){sortCamp.dir=sortCamp.col===col?-sortCamp.dir:-1;sortCamp.col=col;render();}
 function sortByCre(col){sortCre.dir=sortCre.col===col?-sortCre.dir:-1;sortCre.col=col;render();}
 
