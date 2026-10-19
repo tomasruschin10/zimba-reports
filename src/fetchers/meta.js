@@ -73,6 +73,21 @@ function pickAction(arr, type) {
   const h = arr.find((a) => a.action_type === type);
   return h ? Number(h.value) || 0 : 0;
 }
+// Leads configurables por cuenta (clients.json → meta.accounts[].leadTypes).
+// Lista de grupos: cada grupo suma una vez. Un grupo puede ser un tipo o una
+// lista de alternativas por prioridad (se toma la primera que aparezca), para
+// no contar dos veces el mismo lead (ej. lead_grouped ya incluye leadgen.other).
+// Sin leadTypes, se usa el lead de siempre (conversión custom de Mayorista).
+function pickLeads(arr, leadTypes) {
+  if (!leadTypes || !leadTypes.length) return pickAction(arr, LEAD_TYPE);
+  if (!Array.isArray(arr)) return 0;
+  let total = 0;
+  for (const g of leadTypes) {
+    const alts = Array.isArray(g) ? g : [g];
+    for (const t of alts) { const h = arr.find((a) => a.action_type === t); if (h) { total += Number(h.value) || 0; break; } }
+  }
+  return total;
+}
 function pickPurchase(arr) {
   if (!Array.isArray(arr)) return 0;
   for (const t of PURCHASE_TYPES) { const h = arr.find((a) => a.action_type === t); if (h) return Number(h.value) || 0; }
@@ -153,7 +168,7 @@ async function insights(params, ctx) {
   }
 }
 
-export async function fetchMetaCampaignDaily({ adAccountId }, since, until) {
+export async function fetchMetaCampaignDaily({ adAccountId, leadTypes }, since, until) {
   const { token, version } = base(adAccountId);
   const rows = await insights({
     level: "campaign",
@@ -166,11 +181,11 @@ export async function fetchMetaCampaignDaily({ adAccountId }, since, until) {
     date: r.date_start, campaign_name: r.campaign_name,
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
-    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
+    leads: pickLeads(r.actions, leadTypes), messages: pickAction(r.actions, MSG_TYPE),
   }));
 }
 
-export async function fetchMetaAdDaily({ adAccountId }, since, until) {
+export async function fetchMetaAdDaily({ adAccountId, leadTypes }, since, until) {
   const { token, version } = base(adAccountId);
   const rows = await insights({
     level: "ad",
@@ -183,12 +198,12 @@ export async function fetchMetaAdDaily({ adAccountId }, since, until) {
     date: r.date_start, ad_name: r.ad_name, adset_name: r.adset_name || "", campaign_name: r.campaign_name || "",
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
-    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
+    leads: pickLeads(r.actions, leadTypes), messages: pickAction(r.actions, MSG_TYPE),
   }));
 }
 
 // Demografía: breakdown age,gender (a nivel cuenta, agregado del período).
-export async function fetchMetaDemographics({ adAccountId }, since, until) {
+export async function fetchMetaDemographics({ adAccountId, leadTypes }, since, until) {
   const { token, version } = base(adAccountId);
   const rows = await insights({
     level: "account",
@@ -202,12 +217,12 @@ export async function fetchMetaDemographics({ adAccountId }, since, until) {
     date: r.date_start, age: r.age, gender: r.gender,
     impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     spend: Number(r.spend) || 0, purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
-    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
+    leads: pickLeads(r.actions, leadTypes), messages: pickAction(r.actions, MSG_TYPE),
   }));
 }
 
 // Dispositivo: breakdown impression_device (a nivel cuenta, agregado del período).
-export async function fetchMetaDevices({ adAccountId }, since, until) {
+export async function fetchMetaDevices({ adAccountId, leadTypes }, since, until) {
   const { token, version } = base(adAccountId);
   const rows = await insights({
     level: "account",
@@ -221,7 +236,7 @@ export async function fetchMetaDevices({ adAccountId }, since, until) {
     date: r.date_start, device: r.impression_device,
     impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
     spend: Number(r.spend) || 0, purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
-    leads: pickAction(r.actions, LEAD_TYPE), messages: pickAction(r.actions, MSG_TYPE),
+    leads: pickLeads(r.actions, leadTypes), messages: pickAction(r.actions, MSG_TYPE),
   }));
 }
 

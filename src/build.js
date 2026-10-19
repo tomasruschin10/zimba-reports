@@ -69,7 +69,7 @@ async function buildClient(client) {
   //    fuentes siguen; el cliente se genera igual con lo que haya) ──
   for (const acc of meta?.accounts || []) {
     try {
-      const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id }, since, until);
+      const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
       for (const r of camps) campaignRows.push({ account: acc.label, ...r });
       accounts.push(acc.label);
       accountModes[acc.label] = acc.mode || "sales";
@@ -80,7 +80,7 @@ async function buildClient(client) {
       let ads = [];
       let adsDeRespaldo = false;
       try {
-        ads = await fetchMetaAdDaily({ adAccountId: acc.id }, since, until);
+        ads = await fetchMetaAdDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
       } catch (e) {
         console.warn(`  ads ${acc.label}: ${e.message}`);
         // Respaldo: creativos de esta cuenta en el último reporte publicado.
@@ -96,11 +96,11 @@ async function buildClient(client) {
 
       // Breakdowns (best-effort: si alguno falla, seguimos sin romper)
       try {
-        const demo = await fetchMetaDemographics({ adAccountId: acc.id }, since, until);
+        const demo = await fetchMetaDemographics({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
         for (const r of demo) demoRows.push({ account: acc.label, ...r });
       } catch (e) { console.warn(`  demografía ${acc.label}: ${e.message}`); }
       try {
-        const dev = await fetchMetaDevices({ adAccountId: acc.id }, since, until);
+        const dev = await fetchMetaDevices({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
         for (const r of dev) deviceRows.push({ account: acc.label, ...r });
       } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
       const adNames = [...new Set(ads.map((r) => r.ad_name))];
@@ -134,9 +134,11 @@ async function buildClient(client) {
     const label = g.label || "Google";
     try {
       const { campaigns, adGroups, keywords } = await fetchGoogleAll({ customerId: g.customerId }, since, until);
-      for (const r of campaigns) campaignRows.push({ account: label, ...r });
-      googleAdGroups.push(...adGroups.map((r) => ({ account: label, ...r })));
-      googleKeywords.push(...keywords.map((r) => ({ account: label, ...r })));
+      // Cuenta de Google en modo leads (ej. Terres): sus conversiones son leads, no compras.
+      const asLeads = (r) => (g.mode === "leads" ? { ...r, leads: r.purchases, purchases: 0, revenue: 0 } : r);
+      for (const r of campaigns) campaignRows.push({ account: label, ...asLeads(r) });
+      googleAdGroups.push(...adGroups.map((r) => ({ account: label, ...asLeads(r) })));
+      googleKeywords.push(...keywords.map((r) => ({ account: label, ...asLeads(r) })));
       accounts.push(label);
       accountModes[label] = g.mode || "sales";
       accountPlatforms[label] = "google";

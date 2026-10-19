@@ -132,5 +132,36 @@
         "mode": "sales"
       }
     }
+  },
+  {
+    "slug": "terres",
+    "name": "Terres",
+    "usdRate": 1,
+    "sources": {
+      "meta": {
+        "accounts": [
+          {
+            "id": "act_2545200082341930",
+            "label": "Terres",
+            "mode": "leads",
+            "leadTypes": [
+              [
+                "onsite_conversion.lead_grouped",
+                "leadgen.other"
+              ],
+              "offsite_conversion.fb_pixel_custom.interes_terres"
+            ]
+          }
+        ]
+      },
+      "google": [
+        {
+          "enabled": false,
+          "customerId": "PONER_CUSTOMER_ID_TERRES",
+          "label": "Google",
+          "mode": "leads"
+        }
+      ]
+    }
   }
 ]
