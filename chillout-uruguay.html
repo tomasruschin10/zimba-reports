@@ -707,6 +707,7 @@ fetch(`./data/${slug}.json`)
     // guardó uno para este cliente, ese pisa al default.
     const guardado=Number(localStorage.getItem("zimba_usd_"+slug));
     usdRate=guardado>0?guardado:(Number(DATA.usdRate)>0?Number(DATA.usdRate):1000);
+    if(DATA.defaultCurrency==="USD")currency="USD"; // clientes que reportan en dólares (ej. Terres)
     // Con una sola cuenta (ej. Jufre, solo leads) o sin cuentas de venta, "Todas"
     // quedaría vacío: arrancamos directo en la primera cuenta.
     if(DATA.accounts.length===1)account=DATA.accounts[0];
