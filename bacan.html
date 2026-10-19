@@ -156,7 +156,9 @@ let usdRate=1;      // se setea en el arranque
 // modo de la cuenta activa: "sales" (venta) o "leads" (leads/mensajes).
 // En "Todas" mostramos solo cuentas de venta (por ahora solo Minorista).
 function salesAccounts(){return DATA.accounts.filter(a=>(DATA.accountModes?.[a]||"sales")==="sales");}
-function currentMode(){return account==="Todas"?"sales":(DATA.accountModes?.[account]||"sales");}
+// Cliente solo de leads (ej. Terres: Meta + Google, sin ventas): "Todas" suma todas sus cuentas en modo leads.
+function leadsOnly(){return salesAccounts().length===0;}
+function currentMode(){return account==="Todas"?(leadsOnly()?"leads":"sales"):(DATA.accountModes?.[account]||"sales");}
 
 function derive(a){
   const {spend=0,revenue=0,purchases=0,clicks=0,impressions=0,leads=0,messages=0}=a;
@@ -174,7 +176,7 @@ function sumRows(rows){
 const inRange=(d,f,t)=>d>=f&&d<=t;
 // filtro respeta cuenta+campaña+rango. En "Todas" incluye solo cuentas de venta.
 function acctOk(r){
-  if(account==="Todas")return salesAccounts().includes(r.account);
+  if(account==="Todas")return leadsOnly()?DATA.accounts.includes(r.account):salesAccounts().includes(r.account);
   return r.account===account;
 }
 function filt(rows,from,to){return rows.filter(r=>acctOk(r)&&brandOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,from,to));}
@@ -547,6 +549,10 @@ function render(){
 
   // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
   const isGoogle=isGoogleAcct(account);
+  // En modo leads (ej. Terres) las tablas de Google muestran leads y costo por lead en vez de compras/ROAS/valor.
+  const gL=mode==="leads";
+  const gHead=gL?"<th>Leads</th><th>Costo/lead</th>":"<th>Compras</th><th>ROAS</th><th>Valor</th>";
+  const gCells=x=>gL?`<td>${num(x.leads)}</td><td>${x.leads>0?money(x.costPerLead):"—"}</td>`:`<td>${num(x.purchases)}</td><td class="${roasCls(x.roas)}">${dec(x.roas)}</td><td>${money(x.revenue)}</td>`;
   const gFilt=(rows)=>(rows||[]).filter(r=>r.account===account&&brandOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
   const gTypeRows=isGoogle?[...groupBy(cRows,"channel_type").entries()].map(([name,rows])=>({name,...sumRows(rows)})).sort((a,b)=>b.spend-a.spend):[];
   const gAdGroups=isGoogle?[...groupBy(gFilt(DATA.googleAdGroups),"ad_group_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(x=>x.spend>0).sort((a,b)=>b.spend-a.spend).slice(0,20):[];
@@ -591,20 +597,20 @@ function render(){
 
     ${isGoogle&&gTypeRows.length?`<p class="eyebrow">Por tipo de campaña</p>
     <div class="tblcard scroll"><table>
-      <thead><tr><th style="text-align:left">Tipo</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>CTR</th></tr></thead>
-      <tbody>${gTypeRows.map(t=>`<tr><td>${t.name}</td><td>${money(t.spend)}</td><td>${num(t.purchases)}</td><td class="${roasCls(t.roas)}">${dec(t.roas)}</td><td>${money(t.revenue)}</td><td>${dec(t.ctr,1)}%</td></tr>`).join("")}</tbody>
+      <thead><tr><th style="text-align:left">Tipo</th><th>Inversión</th>${gHead}<th>CTR</th></tr></thead>
+      <tbody>${gTypeRows.map(t=>`<tr><td>${t.name}</td><td>${money(t.spend)}</td>${gCells(t)}<td>${dec(t.ctr,1)}%</td></tr>`).join("")}</tbody>
     </table></div>`:""}
 
     ${isGoogle?`<p class="eyebrow">Grupos de anuncios <span style="font-weight:400;color:var(--faint);font-size:12px">· top 20 por inversión</span></p>
     <div class="tblcard scroll"><table>
-      <thead><tr><th style="text-align:left">Grupo</th><th style="text-align:left">Campaña</th><th>Inversión</th><th>Compras</th><th>ROAS</th><th>Valor</th><th>CTR</th><th>CPC</th></tr></thead>
-      <tbody>${gAdGroups.length?gAdGroups.map(a=>`<tr><td>${a.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${a.campaign}</td><td>${money(a.spend)}</td><td>${num(a.purchases)}</td><td class="${roasCls(a.roas)}">${dec(a.roas)}</td><td>${money(a.revenue)}</td><td>${dec(a.ctr,1)}%</td><td>${money2(a.cpc)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
+      <thead><tr><th style="text-align:left">Grupo</th><th style="text-align:left">Campaña</th><th>Inversión</th>${gHead}<th>CTR</th><th>CPC</th></tr></thead>
+      <tbody>${gAdGroups.length?gAdGroups.map(a=>`<tr><td>${a.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${a.campaign}</td><td>${money(a.spend)}</td>${gCells(a)}<td>${dec(a.ctr,1)}%</td><td>${money2(a.cpc)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
     </table></div>`:""}
 
     ${isGoogle?`<p class="eyebrow">Keywords <span style="font-weight:400;color:var(--faint);font-size:12px">· top 25 por inversión</span></p>
     <div class="tblcard scroll"><table>
-      <thead><tr><th style="text-align:left">Keyword</th><th style="text-align:left">Grupo</th><th>Inversión</th><th>Clicks</th><th>Impr.</th><th>CTR</th><th>CPC</th><th>Compras</th></tr></thead>
-      <tbody>${gKeywords.length?gKeywords.map(k=>`<tr><td>${k.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${k.adgroup}</td><td>${money(k.spend)}</td><td>${num(k.clicks)}</td><td>${num(k.impressions)}</td><td>${dec(k.ctr,1)}%</td><td>${money2(k.cpc)}</td><td>${num(k.purchases)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
+      <thead><tr><th style="text-align:left">Keyword</th><th style="text-align:left">Grupo</th><th>Inversión</th><th>Clicks</th><th>Impr.</th><th>CTR</th><th>CPC</th><th>${gL?"Leads":"Compras"}</th></tr></thead>
+      <tbody>${gKeywords.length?gKeywords.map(k=>`<tr><td>${k.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${k.adgroup}</td><td>${money(k.spend)}</td><td>${num(k.clicks)}</td><td>${num(k.impressions)}</td><td>${dec(k.ctr,1)}%</td><td>${money2(k.cpc)}</td><td>${num(gL?k.leads:k.purchases)}</td></tr>`).join(""):'<tr><td colspan="8" style="color:var(--muted)">Sin datos.</td></tr>'}</tbody>
     </table></div>`:""}
 
     ${(hasDemo||hasDevice)&&!isGoogle?`<p class="eyebrow">${demoTitle} <span style="font-weight:400;color:var(--faint);font-size:12px">· a nivel cuenta</span></p>
@@ -703,7 +709,7 @@ fetch(`./data/${slug}.json`)
     usdRate=guardado>0?guardado:(Number(DATA.usdRate)>0?Number(DATA.usdRate):1000);
     // Con una sola cuenta (ej. Jufre, solo leads) o sin cuentas de venta, "Todas"
     // quedaría vacío: arrancamos directo en la primera cuenta.
-    if(DATA.accounts.length===1||salesAccounts().length===0)account=DATA.accounts[0];
+    if(DATA.accounts.length===1)account=DATA.accounts[0];
     render();
   })
   .catch(()=>{document.getElementById("app").innerHTML='<div class="empty">Este reporte todavía no tiene datos.</div>';});
