@@ -136,7 +136,7 @@
   {
     "slug": "terres",
     "name": "Terres",
-    "usdRate": 1,
+    "usdRate": 1500,
     "sources": {
       "meta": {
         "accounts": [
@@ -150,7 +150,8 @@
                 "leadgen.other"
               ],
               "offsite_conversion.fb_pixel_custom.interes_terres"
-            ]
+            ],
+            "currency": "USD"
           }
         ]
       },
@@ -162,6 +163,7 @@
           "mode": "leads"
         }
       ]
-    }
+    },
+    "defaultCurrency": "USD"
   }
 ]

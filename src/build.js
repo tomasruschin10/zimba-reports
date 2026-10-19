@@ -69,8 +69,10 @@ async function buildClient(client) {
   //    fuentes siguen; el cliente se genera igual con lo que haya) ──
   for (const acc of meta?.accounts || []) {
     try {
+      // Cuenta en dólares (ej. Terres): las filas llevan cur:"USD" y el dashboard convierte al sumar.
+      const curTag = acc.currency === "USD" ? { cur: "USD" } : {};
       const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
-      for (const r of camps) campaignRows.push({ account: acc.label, ...r });
+      for (const r of camps) campaignRows.push({ account: acc.label, ...curTag, ...r });
       accounts.push(acc.label);
       accountModes[acc.label] = acc.mode || "sales";
 
@@ -92,16 +94,16 @@ async function buildClient(client) {
           console.warn(`  ads ${acc.label}: uso ${ads.length} filas del reporte anterior (${prev.updatedAt})`);
         }
       }
-      for (const r of ads) adRows.push({ account: acc.label, ...r });
+      for (const r of ads) adRows.push({ account: acc.label, ...curTag, ...r });
 
       // Breakdowns (best-effort: si alguno falla, seguimos sin romper)
       try {
         const demo = await fetchMetaDemographics({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
-        for (const r of demo) demoRows.push({ account: acc.label, ...r });
+        for (const r of demo) demoRows.push({ account: acc.label, ...curTag, ...r });
       } catch (e) { console.warn(`  demografía ${acc.label}: ${e.message}`); }
       try {
         const dev = await fetchMetaDevices({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
-        for (const r of dev) deviceRows.push({ account: acc.label, ...r });
+        for (const r of dev) deviceRows.push({ account: acc.label, ...curTag, ...r });
       } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
       const adNames = [...new Set(ads.map((r) => r.ad_name))];
       if (adNames.length) { // sin anuncios no pedimos miniaturas (si no, trae TODOS los de la cuenta)
@@ -212,6 +214,7 @@ async function buildClient(client) {
     slug: client.slug,
     client: client.name,
     usdRate,
+    defaultCurrency: client.defaultCurrency || "ARS",
     updatedAt: new Date().toISOString(),
     accounts,
     accountModes,
