@@ -156,8 +156,8 @@
       },
       "google": [
         {
-          "enabled": false,
-          "customerId": "PONER_CUSTOMER_ID_TERRES",
+          "enabled": true,
+          "customerId": "7326663707",
           "label": "Google",
           "mode": "leads"
         }
