@@ -156,16 +156,48 @@ async function insightsAsync(params, { token, version, adAccountId }) {
 // Trae insights: primero por la vía rápida y, si Meta dice que la consulta es
 // demasiado grande, por el async job. Las cuentas que hoy andan bien (Bacan,
 // Mayorista) nunca llegan al segundo camino.
+// Diagnóstico (sin tokens): qué devuelve Meta por cuenta. build.js lo publica en
+// data/_diag.json para poder revisar desde afuera sin acceso a los logs.
+export const metaDiag = {};
+function anotar(ctx, params, filas) {
+  const d = (metaDiag[ctx.adAccountId] ||= { consultas: [] });
+  if (d.consultas.length >= 6) return;
+  const f = filas[0] || null;
+  d.consultas.push({
+    level: params.level, fields: params.fields, breakdowns: params.breakdowns || null,
+    filas: filas.length,
+    clavesPrimeraFila: f ? Object.keys(f) : [],
+    muestra: f ? { spend: f.spend ?? null, impressions: f.impressions ?? null, clicks: f.clicks ?? null, date_start: f.date_start } : null,
+    conGasto: filas.filter((r) => Number(r.spend) > 0).length,
+  });
+}
+// Prueba mínima: gasto de ayer a nivel cuenta, con la respuesta cruda (sin token).
+export async function metaProbe({ adAccountId }) {
+  const { token, version } = base(adAccountId);
+  const url = new URL(`https://graph.facebook.com/${version}/${adAccountId}/insights`);
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("fields", "account_currency,spend,impressions,clicks");
+  url.searchParams.set("date_preset", "yesterday");
+  try {
+    const res = await fetch(url.toString());
+    return { status: res.status, body: await res.json() };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
 async function insights(params, ctx) {
   const url = new URL(`https://graph.facebook.com/${ctx.version}/${ctx.adAccountId}/insights`);
   url.searchParams.set("access_token", ctx.token);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  let filas;
   try {
-    return await fetchAll(url.toString());
+    filas = await fetchAll(url.toString());
   } catch (e) {
     if (!esDemasiadaData(e)) throw e;
-    return await insightsAsync(params, ctx);
+    filas = await insightsAsync(params, ctx);
   }
+  anotar(ctx, params, filas);
+  return filas;
 }
 
 export async function fetchMetaCampaignDaily({ adAccountId, leadTypes }, since, until) {

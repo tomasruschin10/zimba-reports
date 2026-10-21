@@ -11,7 +11,7 @@ import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { webcrypto as crypto } from "node:crypto";
-import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails } from "./fetchers/meta.js";
+import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails, metaDiag, metaProbe } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily, fetchTiktokAdDaily } from "./fetchers/tiktok.js";
 import { fetchPinterestCampaignDaily } from "./fetchers/pinterest.js";
@@ -71,7 +71,25 @@ async function buildClient(client) {
     try {
       // Cuenta en dólares (ej. Terres): las filas llevan cur:"USD" y el dashboard convierte al sumar.
       const curTag = acc.currency === "USD" ? { cur: "USD" } : {};
-      const camps = await fetchMetaCampaignDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
+      let camps = await fetchMetaCampaignDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
+      // Control de cordura: si Meta devuelve resultados pero gasto E impresiones en 0
+      // (pasó el 21/10 con Chill Out y Terres), los datos están rotos. En vez de
+      // publicar inversión 0 y ROAS infinitos, reusamos esta cuenta del reporte anterior.
+      const sumImp = camps.reduce((a, r) => a + (r.impressions || 0), 0);
+      const sumRes = camps.reduce((a, r) => a + (r.purchases || 0) + (r.messages || 0) + (r.leads || 0), 0);
+      if (camps.length && sumImp === 0 && sumRes > 0) {
+        const probe = await metaProbe({ adAccountId: acc.id });
+        (metaDiag[acc.id] ||= { consultas: [] }).probe = probe;
+        console.warn(`  ⚠ ${acc.label}: Meta devolvió gasto e impresiones en 0 con ${Math.round(sumRes)} resultados — uso el reporte anterior`);
+        if (prev === undefined) prev = await loadPrev(client.slug);
+        const viejos = (prev?.campaignRows || []).filter((r) => r.account === acc.label && r.date >= since);
+        if (viejos.length && viejos.some((r) => r.impressions > 0)) {
+          camps = viejos.map(({ account, cur, ...r }) => r);
+          metaDiag[acc.id].respaldo = { filas: camps.length, desde: prev.updatedAt };
+        } else {
+          console.warn(`  ⚠ ${acc.label}: el reporte anterior tampoco tiene gasto; publico lo que vino`);
+        }
+      }
       for (const r of camps) campaignRows.push({ account: acc.label, ...curTag, ...r });
       accounts.push(acc.label);
       accountModes[acc.label] = acc.mode || "sales";
@@ -302,6 +320,7 @@ async function main() {
     `<body style="font-family:system-ui;background:#f6f7f9;color:#1a1d23;padding:40px">` +
     `<h1>Zimba · Reportes</h1><ul>${items || "<li>Sin reportes.</li>"}</ul>`, "utf8");
 
+  await writeFile(join(OUT, "data", "_diag.json"), JSON.stringify({ at: new Date().toISOString(), meta: metaDiag }, null, 1), "utf8");
   console.log(`\n✔ Build listo. ${built.length} cliente(s).`);
 }
 
