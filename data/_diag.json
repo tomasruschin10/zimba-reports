@@ -1,5 +1,5 @@
 {
- "at": "2026-10-23T23:11:17.270Z",
+ "at": "2026-10-24T03:10:30.735Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -30,7 +30,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 3721,
+     "filas": 3722,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -55,7 +55,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 2284,
+     "filas": 2285,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -73,7 +73,7 @@
       "clicks": "234",
       "date_start": "2026-07-01"
      },
-     "conGasto": 2189
+     "conGasto": 2190
     },
     {
      "level": "account",
@@ -96,7 +96,7 @@
       "clicks": "1602",
       "date_start": "2026-07-01"
      },
-     "conGasto": 664
+     "conGasto": 665
     }
    ]
   },
@@ -129,7 +129,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 576,
+     "filas": 577,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -147,7 +147,7 @@
       "clicks": "46",
       "date_start": "2026-07-01"
      },
-     "conGasto": 563
+     "conGasto": 564
     },
     {
      "level": "account",
@@ -350,7 +350,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1619,
+     "filas": 1622,
      "clavesPrimeraFila": [
       "actions",
       "age",
@@ -368,13 +368,13 @@
       "clicks": "90",
       "date_start": "2026-08-01"
      },
-     "conGasto": 1544
+     "conGasto": 1547
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 496,
+     "filas": 498,
      "clavesPrimeraFila": [
       "actions",
       "date_start",
@@ -391,7 +391,7 @@
       "clicks": "1390",
       "date_start": "2026-08-01"
      },
-     "conGasto": 439
+     "conGasto": 442
     }
    ]
   },
