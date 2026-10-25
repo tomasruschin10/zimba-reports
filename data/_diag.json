@@ -1,5 +1,5 @@
 {
- "at": "2026-10-25T13:10:44.234Z",
+ "at": "2026-10-25T14:43:49.194Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -30,7 +30,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 3789,
+     "filas": 3790,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -41,8 +41,7 @@
       "actions",
       "action_values",
       "date_start",
-      "date_stop",
-      "account_id"
+      "date_stop"
      ],
      "muestra": {
       "spend": "77578.18",
@@ -154,7 +153,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1470,
+     "filas": 1471,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -171,7 +170,7 @@
       "clicks": "0",
       "date_start": "2026-07-01"
      },
-     "conGasto": 1464
+     "conGasto": 1465
     },
     {
      "level": "account",
@@ -326,7 +325,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2518,
+     "filas": 2519,
      "clavesPrimeraFila": [
       "actions",
       "date_start",
@@ -345,7 +344,7 @@
       "clicks": "972",
       "date_start": "2026-08-01"
      },
-     "conGasto": 2372
+     "conGasto": 2373
     },
     {
      "level": "account",
@@ -424,7 +423,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 368,
+     "filas": 369,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -442,7 +441,7 @@
       "clicks": "393",
       "date_start": "2026-08-01"
      },
-     "conGasto": 368
+     "conGasto": 369
     },
     {
      "level": "account",
@@ -559,7 +558,7 @@
       "clicks": "1",
       "date_start": "2026-08-01"
      },
-     "conGasto": 1421
+     "conGasto": 1422
     },
     {
      "level": "account",
