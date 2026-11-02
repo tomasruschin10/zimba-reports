@@ -220,6 +220,13 @@ function currentRange(){
     const pt=new Date(d1); pt.setUTCDate(pt.getUTCDate()-1);
     const pf=new Date(pt); pf.setUTCDate(pf.getUTCDate()-(dias-1));
     R={key:"custom",label:"Personalizado",from,to,pf:pf.toISOString().slice(0,10),pt:pt.toISOString().slice(0,10)};
+    // Mes calendario completo (ej. elegido con "Mes…"): el período anterior es el mes anterior entero,
+    // no los N días previos (si no, octubre se compara con 31 ago–30 sep).
+    const finMes=(y,m)=>new Date(Date.UTC(y,m+1,0)).toISOString().slice(0,10);
+    if(d1.getUTCDate()===1&&to===finMes(d1.getUTCFullYear(),d1.getUTCMonth())){
+      const y=d1.getUTCFullYear(),m=d1.getUTCMonth()-1;
+      R.pf=new Date(Date.UTC(y,m,1)).toISOString().slice(0,10);R.pt=finMes(y,m);
+    }
   }
   if(compare==="month"){R.pf=shiftMonths(R.from,-1);R.pt=shiftMonths(R.to,-1);}
   else if(compare==="year"){R.pf=shiftMonths(R.from,-12);R.pt=shiftMonths(R.to,-12);}
