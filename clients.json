@@ -165,5 +165,27 @@
       ]
     },
     "defaultCurrency": "USD"
+  },
+  {
+    "slug": "predial",
+    "name": "Predial",
+    "usdRate": 1500,
+    "sources": {
+      "meta": {
+        "accounts": [
+          {
+            "id": "act_1232297171727945",
+            "label": "Predial",
+            "mode": "leads",
+            "leadTypes": [
+              [
+                "onsite_conversion.lead_grouped",
+                "leadgen.other"
+              ]
+            ]
+          }
+        ]
+      }
+    }
   }
 ]
