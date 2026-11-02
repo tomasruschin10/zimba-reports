@@ -139,6 +139,7 @@ let customFrom=null, customTo=null; // rango personalizado (view==="custom")
 let compare="prev"; // prev | month | year | none
 // ¿la cuenta es de Google? (puede llamarse "Google" o tener nombre propio, ej. "Mantra")
 function isGoogleAcct(a){return a==="Google"||DATA.accountPlatforms?.[a]==="google";}
+let soloActivas=false; // filtro "Solo campañas activas" (cuentas con status, ej. Predial)
 let brandMode="all"; // all | sin | solo — campaña de brand de Google (clients.json → google.brandMatch)
 function isBrand(r){
   if(!DATA.brandMatch||!isGoogleAcct(r.account))return false;
@@ -179,7 +180,14 @@ function acctOk(r){
   if(account==="Todas")return leadsOnly()?DATA.accounts.includes(r.account):salesAccounts().includes(r.account);
   return r.account===account;
 }
-function filt(rows,from,to){return rows.filter(r=>acctOk(r)&&brandOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,from,to));}
+// Estados y presupuestos (Meta, cuentas con "adsets": true en clients.json)
+function statusOf(acct){return (DATA.status&&DATA.status[acct])||null;}
+function campStatus(r){const s=statusOf(r.account);if(!s)return null;const c=s.campaigns.find(x=>x.name===r.campaign_name);return c?c.status:null;}
+function activeOk(r){if(!soloActivas)return true;const st=campStatus(r);return st==null?!statusOf(r.account):st==="ACTIVE";}
+const ESTADO={ACTIVE:"Activa",PAUSED:"Pausada",CAMPAIGN_PAUSED:"Campaña pausada",ADSET_PAUSED:"Pausado",ARCHIVED:"Archivada",DELETED:"Borrada",IN_PROCESS:"En proceso",WITH_ISSUES:"Con errores",PENDING_REVIEW:"En revisión",DISAPPROVED:"Rechazada"};
+function estadoPill(st){if(!st)return '<span style="color:var(--faint)">—</span>';const on=st==="ACTIVE";
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:${on?"color-mix(in srgb,var(--pos) 15%,transparent)":"var(--surface-2)"};color:${on?"var(--pos)":"var(--muted)"}">${ESTADO[st]||st}</span>`;}
+function filt(rows,from,to){return rows.filter(r=>acctOk(r)&&brandOk(r)&&activeOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,from,to));}
 function filtAcct(rows,from,to){return (rows||[]).filter(r=>acctOk(r)&&inRange(r.date,from,to));}
 
 function fixedRanges(today=new Date()){
@@ -258,7 +266,10 @@ function weeklyTable(mode){
     const t=sumRows(filt(DATA.campaignRows,ymd(ini),ymd(fin)));
     weeks.push({label:`${fmtD(ini)} – ${fmtD(fin)}`,actual:i===0,t});
   }
-  const cols=mode==="leads"
+  const soloForm=mode==="leads"&&DATA.campaignRows.some(r=>acctOk(r)&&(r.leads||0)>0)&&!DATA.campaignRows.some(r=>acctOk(r)&&(r.messages||0)>0);
+  const cols=soloForm
+    ?[{h:"Inversión",f:t=>money(t.spend)},{h:"Leads",k:"leads",dir:1,f:t=>num(t.leads)},{h:"Costo/lead",k:"costPerLead",dir:-1,f:t=>t.leads>0?money(t.costPerLead):"—"},{h:"CTR",f:t=>dec(t.ctr,1)+"%"}]
+    :mode==="leads"
     ?[{h:"Inversión",f:t=>money(t.spend)},{h:"Mensajes",k:"messages",dir:1,f:t=>num(t.messages)},{h:"Costo/mensaje",k:"costPerMsg",dir:-1,f:t=>t.messages>0?money(t.costPerMsg):"—"},{h:"CTR",f:t=>dec(t.ctr,1)+"%"}]
     :[{h:"Inversión",f:t=>money(t.spend)},{h:"Compras",k:"purchases",dir:1,f:t=>num(t.purchases)},{h:"ROAS",k:"roas",dir:1,f:t=>dec(t.roas)},{h:"Costo/compra",k:"costPerPurchase",dir:-1,f:t=>t.purchases>0?money(t.costPerPurchase):"—"}];
   const delta=(c,p,dir)=>{if(!p)return "";const pct=((c-p)/Math.abs(p))*100;const good=dir===1?pct>=0:pct<=0;
@@ -307,6 +318,37 @@ function lineChart(series,fmt,alto){
     <svg viewBox="0 0 ${W} ${H}" width="100%">
       ${gy}
       <line class="gd" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="${TH.soft}" stroke-width="1.5" opacity="0"/>
+      <polyline points="${pts}" fill="none" stroke="${TH.line}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${lbl}
+      <circle class="hl" cx="0" cy="0" r="6" fill="${TH.line}" stroke="#fff" stroke-width="2.5" opacity="0"/>
+    </svg>
+    <div class="tip"></div>
+  </div>`;
+}
+// Inversión (barras, eje izq.) + leads (línea, eje der.) por día — como el dashboard de Predial.
+function barLineChart(spendS,leadS){
+  if(!spendS.length) return '<div class="empty">Sin datos en el rango.</div>';
+  const W=1140,H=300;
+  const L=new Map(leadS.map(d=>[d.date,d.value]));
+  const ser=spendS.map(d=>({date:d.date,s:d.value,l:L.get(d.date)||0}));
+  const maxS=Math.max(...ser.map(d=>d.s),1)*1.15, maxL=Math.max(...ser.map(d=>d.l),1)*1.15;
+  const padL=Math.max(52,...[0,maxS/2,maxS].map(v=>compact(v).length*8+16)),padR=48,padT=18,padB=34;
+  const bw=(W-padL-padR)/ser.length;
+  const x=(i)=>padL+bw*i+bw/2;
+  const yS=(v)=>H-padB-(v/maxS)*(H-padT-padB), yL=(v)=>H-padB-(v/maxL)*(H-padT-padB);
+  const gy=[0,0.25,0.5,0.75,1].map(f=>`<line x1="${padL}" x2="${W-padR}" y1="${yS(maxS*f)}" y2="${yS(maxS*f)}" stroke="${TH.grid}"/><text x="${padL-10}" y="${yS(maxS*f)+5}" fill="${TH.axis}" font-size="13" text-anchor="end">${compact(maxS*f)}</text><text x="${W-padR+10}" y="${yS(maxS*f)+5}" fill="${TH.line}" font-size="13">${Math.round(maxL*f)}</text>`).join("");
+  const bars=ser.map((d,i)=>`<rect x="${x(i)-bw*0.35}" y="${yS(d.s)}" width="${bw*0.7}" height="${H-padB-yS(d.s)}" fill="${TH.soft}" rx="3"/>`).join("");
+  const pts=ser.map((d,i)=>`${x(i)},${yL(d.l)}`).join(" ");
+  const dots=ser.map((d,i)=>`<circle cx="${x(i)}" cy="${yL(d.l)}" r="3.5" fill="${TH.line}"/>`).join("");
+  const step=Math.ceil(ser.length/14||1);
+  const lbl=ser.map((d,i)=>i%step===0?`<text x="${x(i)}" y="${H-10}" fill="${TH.axis}" font-size="12" text-anchor="middle">${d.date.slice(8)}</text>`:"").join("");
+  const meta=ser.map((d,i)=>({x:x(i),y:yL(d.l),t:`${d.date.slice(8)}/${d.date.slice(5,7)} · ${money(d.s)} · ${num(d.l)} leads`}));
+  const json=JSON.stringify(meta).replace(/'/g,"&#39;");
+  return `<div style="display:flex;gap:18px;font-size:12px;color:var(--muted);margin-bottom:6px"><span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${TH.soft};margin-right:6px"></span>Inversión</span><span><span style="display:inline-block;width:14px;height:3px;border-radius:2px;background:${TH.line};margin-right:6px;vertical-align:3px"></span>Leads</span></div>
+  <div class="chartbox" data-pts='${json}' data-w="${W}" data-h="${H}">
+    <svg viewBox="0 0 ${W} ${H}" width="100%">
+      ${gy}${bars}
+      <line class="gd" x1="0" x2="0" y1="${padT}" y2="${H-padB}" stroke="${TH.axis}" stroke-width="1" opacity="0"/>
       <polyline points="${pts}" fill="none" stroke="${TH.line}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
       ${dots}${lbl}
       <circle class="hl" cx="0" cy="0" r="6" fill="${TH.line}" stroke="#fff" stroke-width="2.5" opacity="0"/>
@@ -461,38 +503,64 @@ function render(){
   const prevM=sumRows(filt(DATA.campaignRows,rr.find(r=>r.key==="mespasado").from,rr.find(r=>r.key==="mespasado").to));
 
   // ===== KPIs, tabla, gráficos, creatives, demo según MODO =====
-  let kpis, campHead, campBody, campFoot, chartsHTML, momGroups, creHead, creBody, demoMetric, demoTitle;
+  let kpis, campHead, campBody, campFoot, chartsHTML, momGroups, creHead, creBody, demoMetric, demoTitle, adsetHTML="";
 
   // ¿la cuenta activa tiene leads de formulario? (Jufre solo tiene mensajes de WhatsApp)
   const hasForm=DATA.campaignRows.some(r=>acctOk(r)&&(r.leads||0)>0);
+  // ¿tiene mensajes? (Predial es solo formularios: sin columnas de mensajes)
+  const hasMsg=!hasForm||DATA.campaignRows.some(r=>acctOk(r)&&(r.messages||0)>0);
+  const stat=account!=="Todas"?statusOf(account):null;
   if(mode==="leads"){
     kpis=[
       {l:"Inversión",v:money(t.spend),c:t.spend,p:tPrev.spend,dir:0},
       ...(hasForm?[{l:"Leads",v:num(t.leads),c:t.leads,p:tPrev.leads,dir:1},
-      {l:"$/Form",v:money(t.costPerLead),c:t.costPerLead,p:tPrev.costPerLead,dir:-1}]:[]),
-      {l:"Mensajes",v:num(t.messages),c:t.messages,p:tPrev.messages,dir:1},
-      {l:"Costo por mensaje",v:money(t.costPerMsg),c:t.costPerMsg,p:tPrev.costPerMsg,dir:-1},
+      {l:hasMsg?"$/Form":"Costo por lead",v:money(t.costPerLead),c:t.costPerLead,p:tPrev.costPerLead,dir:-1}]:[]),
+      ...(hasMsg?[{l:"Mensajes",v:num(t.messages),c:t.messages,p:tPrev.messages,dir:1},
+      {l:"Costo por mensaje",v:money(t.costPerMsg),c:t.costPerMsg,p:tPrev.costPerMsg,dir:-1}]:[]),
       {l:"CTR",v:dec(t.ctr,1)+"%",c:t.ctr,p:tPrev.ctr,dir:1},
       {l:"CPC",v:money2(t.cpc),c:t.cpc,p:tPrev.cpc,dir:-1},
     ];
     // tabla campaña (modo leads)
-    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)&&inRange(r.date,R.from,R.to));
+    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)&&activeOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
-    campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${hasForm?th("Leads","leads",sortCamp,"sortByCamp")+th("$/Form","costPerLead",sortCamp,"sortByCamp"):""}${th("Mensajes","messages",sortCamp,"sortByCamp")}${th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp")}`;
-    campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td>${hasForm?`<td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td>`:""}<td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td></tr>`).join("");
-    campFoot=`<td>Total</td><td>${money(t.spend)}</td>${hasForm?`<td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td>`:""}<td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`;
+    // Estado y presupuesto diario (si la cuenta los trae). Presupuesto en la moneda de la cuenta → vista.
+    const acCur=(DATA.campaignRows.find(r=>r.account===account)||{}).cur;
+    const budget=(b)=>b>0?money(toView(b,acCur)):'<span style="color:var(--faint)">—</span>';
+    const cInfo=(n)=>stat?(stat.campaigns.find(x=>x.name===n)||{}):{};
+    if(stat){byC.forEach(c=>{c.estado=cInfo(c.name).status||"";c.budget=cInfo(c.name).budget||0;});if(sortCamp.col==="estado"||sortCamp.col==="budget")byC=sortRows(byC,sortCamp);}
+    campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${stat?th("Estado","estado",sortCamp,"sortByCamp","left")+th("Presupuesto diario","budget",sortCamp,"sortByCamp"):""}${th("Inversión","spend",sortCamp,"sortByCamp")}${hasForm?th("Leads","leads",sortCamp,"sortByCamp")+th(hasMsg?"$/Form":"Costo/lead","costPerLead",sortCamp,"sortByCamp"):""}${hasMsg?th("Mensajes","messages",sortCamp,"sortByCamp")+th("Costo/mensaje","costPerMsg",sortCamp,"sortByCamp"):""}`;
+    campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td>${stat?`<td style="text-align:left">${estadoPill(c.estado)}</td><td>${budget(c.budget)}</td>`:""}<td>${money(c.spend)}</td>${hasForm?`<td>${num(c.leads)}</td><td>${c.leads>0?money(c.costPerLead):"—"}</td>`:""}${hasMsg?`<td>${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td>`:""}</tr>`).join("");
+    campFoot=`<td>Total</td>${stat?"<td></td><td></td>":""}<td>${money(t.spend)}</td>${hasForm?`<td>${num(t.leads)}</td><td>${t.leads>0?money(t.costPerLead):"—"}</td>`:""}${hasMsg?`<td>${num(t.messages)}</td><td>${t.messages>0?money(t.costPerMsg):"—"}</td>`:""}`;
+    // Grupos de anuncios agrupados bajo su campaña (como el dashboard de Predial)
+    const asRows=(DATA.adsetRows||[]).filter(r=>r.account===account&&activeOk(r)&&(campaign==="Todas"||r.campaign_name===campaign)&&inRange(r.date,R.from,R.to));
+    if(stat&&asRows.length){
+      const asInfo=(n,cn)=>stat.adsets.find(x=>x.name===n&&x.campaign===cn)||stat.adsets.find(x=>x.name===n)||{};
+      const camps=[...groupBy(asRows,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows),
+        sets:[...groupBy(rows,"adset_name").entries()].map(([n,rr])=>({name:n,estado:asInfo(n,name).status,...sumRows(rr)})).filter(x=>x.spend>0||x.leads>0).sort((a,b)=>b.spend-a.spend)}))
+        .filter(c=>c.sets.length).sort((a,b)=>b.spend-a.spend);
+      const cel=(x)=>`<td>${money(x.spend)}</td><td>${num(x.leads)}</td><td>${x.leads>0?money(x.costPerLead):"—"}</td>`;
+      adsetHTML=`<p class="eyebrow">Grupos de anuncios <span style="font-weight:400;color:var(--faint);font-size:12px">· agrupados por campaña</span></p>
+      <div class="tblcard scroll"><table><thead><tr><th style="text-align:left">Grupo de anuncios</th><th style="text-align:left">Estado</th><th>Inversión</th><th>Leads</th><th>Costo/lead</th></tr></thead><tbody>`+
+        camps.map(c=>`<tr style="background:var(--surface-2)"><td style="font-weight:600">${c.name}</td><td style="text-align:left">${estadoPill(cInfo(c.name).status)}</td><td style="font-weight:600">${money(c.spend)}</td><td style="font-weight:600">${num(c.leads)}</td><td style="font-weight:600">${c.leads>0?money(c.costPerLead):"—"}</td></tr>`+
+          c.sets.map(a=>`<tr><td style="padding-left:28px;color:var(--muted)">↳ ${a.name}</td><td style="text-align:left">${estadoPill(a.estado)}</td>${cel(a)}</tr>`).join("")).join("")+
+        `</tbody></table></div>`;
+    }
     // gráficos: leads y mensajes por día
-    chartsHTML=`${hasForm?`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>`:""}
+    chartsHTML=hasForm&&!hasMsg
+      ?`<p class="eyebrow">Inversión y leads por día</p><div class="card">${barLineChart(seriesByDay(cRows,o=>o.spend),seriesByDay(cRows,o=>o.leads))}</div>`
+      :`${hasForm?`<p class="eyebrow">Leads por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.leads),(v)=>num(v))}</div>`:""}
       <p class="eyebrow">Mensajes por día</p><div class="card">${lineChart(seriesByDay(cRows,o=>o.messages),(v)=>num(v))}</div>`;
-    momGroups=[...(hasForm?[{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)}]:[]),{k:"Mensajes",c:curM.messages,p:prevM.messages,fmt:(v)=>num(v)},{k:"Costo/mensaje",c:curM.costPerMsg,p:prevM.costPerMsg,fmt:(v)=>money(v)}];
+    momGroups=hasMsg?[...(hasForm?[{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)}]:[]),{k:"Mensajes",c:curM.messages,p:prevM.messages,fmt:(v)=>num(v)},{k:"Costo/mensaje",c:curM.costPerMsg,p:prevM.costPerMsg,fmt:(v)=>money(v)}]
+      :[{k:"Inversión",c:curM.spend,p:prevM.spend,fmt:(v)=>money(v)},{k:"Leads",c:curM.leads,p:prevM.leads,fmt:(v)=>num(v)},{k:"Costo/lead",c:curM.costPerLead,p:prevM.costPerLead,fmt:(v)=>money(v)}];
     // creatives por mensajes
     let cre=[...groupBy(aRows,"ad_name").entries()].map(([name,rows])=>({name,campaign:rows[0].campaign_name,...sumRows(rows)})).filter(c=>c.spend>0);
-    const vals=cre.map(c=>c.messages);const mn=Math.min(...vals,0),mx=Math.max(...vals,1);
-    if(sortCre.col==="roas")sortCre.col="messages";
+    const mk=hasMsg?"messages":"leads";
+    const vals=cre.map(c=>c[mk]);const mn=Math.min(...vals,0),mx=Math.max(...vals,1);
+    if(sortCre.col==="roas"||(!hasMsg&&sortCre.col==="messages"))sortCre.col=mk;
     cre=sortRows(cre,sortCre).slice(0,15);
-    creHead=`<th></th>${th("Creativo","name",sortCre,"sortByCre","left")}${th("Campaña","campaign",sortCre,"sortByCre","left")}${th("Inversión","spend",sortCre,"sortByCre")}${th("Mensajes","messages",sortCre,"sortByCre")}${th("Costo/msj","costPerMsg",sortCre,"sortByCre")}${hasForm?th("Leads","leads",sortCre,"sortByCre"):""}${th("CTR","ctr",sortCre,"sortByCre")}`;
-    creBody=cre.map(c=>{const tn=mx>mn?(c.messages-mn)/(mx-mn):1;const th2=(DATA.thumbnails&&DATA.thumbnails[c.name])?`<img src="${DATA.thumbnails[c.name]}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block" loading="lazy">`:`<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-2)"></div>`;return `<tr style="background:${heatColor(tn)}"><td style="width:52px">${th2}</td><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td><td style="font-weight:600">${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td>${hasForm?`<td>${num(c.leads)}</td>`:""}<td>${dec(c.ctr,1)}%</td></tr>`;}).join("");
-    demoMetric="messages";demoTitle="Mensajes por audiencia";
+    creHead=`<th></th>${th("Creativo","name",sortCre,"sortByCre","left")}${th("Campaña","campaign",sortCre,"sortByCre","left")}${th("Inversión","spend",sortCre,"sortByCre")}${hasMsg?th("Mensajes","messages",sortCre,"sortByCre")+th("Costo/msj","costPerMsg",sortCre,"sortByCre"):""}${hasForm?th("Leads","leads",sortCre,"sortByCre"):""}${!hasMsg?th("Costo/lead","costPerLead",sortCre,"sortByCre"):""}${th("CTR","ctr",sortCre,"sortByCre")}`;
+    creBody=cre.map(c=>{const tn=mx>mn?(c[mk]-mn)/(mx-mn):1;const th2=(DATA.thumbnails&&DATA.thumbnails[c.name])?`<img src="${DATA.thumbnails[c.name]}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;display:block" loading="lazy">`:`<div style="width:40px;height:40px;border-radius:6px;background:var(--surface-2)"></div>`;return `<tr style="background:${heatColor(tn)}"><td style="width:52px">${th2}</td><td>${c.name}</td><td style="text-align:left;color:var(--muted);font-size:13px">${c.campaign}</td><td>${money(c.spend)}</td>${hasMsg?`<td style="font-weight:600">${num(c.messages)}</td><td>${c.messages>0?money(c.costPerMsg):"—"}</td>`:""}${hasForm?`<td${hasMsg?"":' style="font-weight:600"'}>${num(c.leads)}</td>`:""}${!hasMsg?`<td>${c.leads>0?money(c.costPerLead):"—"}</td>`:""}<td>${dec(c.ctr,1)}%</td></tr>`;}).join("");
+    demoMetric=hasMsg?"messages":"leads";demoTitle=hasMsg?"Mensajes por audiencia":"Leads por audiencia";
   } else {
     kpis=[
       {l:"ROAS",v:dec(t.roas),cls:roasCls(t.roas),c:t.roas,p:tPrev.roas,dir:1},
@@ -505,7 +573,7 @@ function render(){
       {l:"CPC",v:money2(t.cpc),c:t.cpc,p:tPrev.cpc,dir:-1},
       {l:"Conversion rate",v:dec(t.convRate,1)+"%",c:t.convRate,p:tPrev.convRate,dir:1},
     ];
-    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)&&inRange(r.date,R.from,R.to));
+    const cAll=DATA.campaignRows.filter(r=>acctOk(r)&&brandOk(r)&&activeOk(r)&&inRange(r.date,R.from,R.to));
     let byC=sortRows([...groupBy(cAll,"campaign_name").entries()].map(([name,rows])=>({name,...sumRows(rows)})),sortCamp);
     campHead=`${th("Campaña","name",sortCamp,"sortByCamp","left")}${th("Inversión","spend",sortCamp,"sortByCamp")}${th("Compras","purchases",sortCamp,"sortByCamp")}${th("ROAS","roas",sortCamp,"sortByCamp")}${th("Valor","revenue",sortCamp,"sortByCamp")}${th("Costo/compra","costPerPurchase",sortCamp,"sortByCamp")}`;
     campBody=byC.map(c=>`<tr${campaign===c.name?` style="background:${TH.hi}"`:''}><td>${c.name}</td><td>${money(c.spend)}</td><td>${num(c.purchases)}</td><td class="${roasCls(c.roas)}">${dec(c.roas)}</td><td>${money(c.revenue)}</td><td>${c.purchases>0?money(c.costPerPurchase):"—"}</td></tr>`).join("");
@@ -523,7 +591,7 @@ function render(){
   }
 
   const kpiCards=kpis.map(k=>`<div class="metric"><div class="label">${k.l}</div><div class="value ${k.cls||''}">${k.v}</div>${deltaBadge(k.c,k.p,k.dir)}</div>`).join("");
-  const colspan=mode==="leads"?(hasForm?8:7):10;
+  const colspan=mode==="leads"?(hasForm?8:7)+(stat?2:0):10;
 
   // demo/device (métrica según modo)
   const demoRows=filtAcct(DATA.demoRows,R.from,R.to);
@@ -578,15 +646,17 @@ function render(){
     ${filtrosBar}
 
     ${currency==="USD"?`<div class="aviso" style="margin-top:14px">Valores convertidos a <b>USD</b> a un tipo de cambio de <b>$${num(usdRate)}</b> (editable arriba). Es una conversión de referencia con la cotización de hoy: montos de fechas pasadas no reflejan el dólar de ese día.</div>`:""}
-    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${mode==="leads"?(hasForm?"leads y mensajes":"mensajes"):"venta"} · vs período anterior</span></p>
+    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${mode==="leads"?(hasForm?(hasMsg?"leads y mensajes":"leads"):"mensajes"):"venta"} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
 
-    <p class="eyebrow">Por campaña</p>
+    <p class="eyebrow">Por campaña${stat?` <label style="float:right;font-weight:500;font-size:13px;color:var(--muted);text-transform:none;letter-spacing:0;cursor:pointer"><input type="checkbox" ${soloActivas?"checked":""} onchange="setActivas(this.checked)" style="vertical-align:-2px"> Solo campañas activas</label>`:""}</p>
     <div class="tblcard scroll"><table>
       <thead><tr>${campHead}</tr></thead>
       <tbody>${campBody||`<tr><td colspan="${colspan}" style="color:var(--muted)">Sin campañas.</td></tr>`}</tbody>
       <tfoot><tr>${campFoot}</tr></tfoot>
     </table></div>
+
+    ${adsetHTML}
 
     ${chartsHTML}
 
@@ -696,6 +766,7 @@ function setCustomTo(v){
 }
 function setAccount(k){account=k;campaign="Todas";render();}
 function setCampaign(k){campaign=k;render();}
+function setActivas(v){soloActivas=v;campaign="Todas";render();}
 function setBrand(k){brandMode=k;campaign="Todas";render();}
 function setMonth(k){
   if(!k)return;

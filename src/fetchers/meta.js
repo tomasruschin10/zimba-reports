@@ -304,3 +304,49 @@ export async function fetchMetaThumbnails({ adAccountId }, adNames = []) {
   console.log(`    thumbnails: ${Object.keys(map).length}/${wanted.size || "?"} con miniatura`);
   return map;
 }
+
+// ── Grupos de anuncios y estado/presupuesto (opt-in por cuenta: meta.accounts[].adsets) ──
+// Igual que el tablero de Predial: insights diarios por grupo, y el estado
+// (activa/pausada) + presupuesto diario de campañas y grupos.
+export async function fetchMetaAdsetDaily({ adAccountId, leadTypes }, since, until) {
+  const { token, version } = base(adAccountId);
+  const rows = await insights({
+    level: "adset",
+    time_increment: "1",
+    time_range: JSON.stringify({ since, until }),
+    fields: "adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
+    limit: "500",
+  }, { token, version, adAccountId });
+  return rows.map((r) => ({
+    date: r.date_start, campaign_name: r.campaign_name, adset_name: r.adset_name,
+    spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0,
+    purchases: pickPurchase(r.actions), revenue: pickPurchase(r.action_values),
+    leads: pickLeads(r.actions, leadTypes), messages: pickAction(r.actions, MSG_TYPE),
+  }));
+}
+export async function fetchMetaStatuses({ adAccountId }) {
+  const { token, version } = base(adAccountId);
+  const list = (edge, fields) => {
+    const u = new URL(`https://graph.facebook.com/${version}/${adAccountId}/${edge}`);
+    u.searchParams.set("access_token", token);
+    u.searchParams.set("fields", fields);
+    u.searchParams.set("limit", "500");
+    return fetchAll(u.toString());
+  };
+  const [camps, adsets] = await Promise.all([
+    list("campaigns", "id,name,effective_status,daily_budget"),
+    list("adsets", "id,name,effective_status,daily_budget,campaign_id"),
+  ]);
+  const campName = new Map(camps.map((c) => [c.id, c.name]));
+  // Presupuesto diario de la campaña: el propio (CBO) o la suma de sus grupos activos (ABO). Meta lo da en centavos.
+  const campaigns = camps.map((c) => {
+    const own = Number(c.daily_budget || 0);
+    const abo = adsets.filter((a) => a.campaign_id === c.id && a.effective_status === "ACTIVE")
+      .reduce((s, a) => s + Number(a.daily_budget || 0), 0);
+    return { name: c.name, status: c.effective_status, budget: (own || abo) / 100 };
+  });
+  return {
+    campaigns,
+    adsets: adsets.map((a) => ({ name: a.name, campaign: campName.get(a.campaign_id) || "", status: a.effective_status, budget: Number(a.daily_budget || 0) / 100 })),
+  };
+}

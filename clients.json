@@ -177,6 +177,7 @@
             "id": "act_1232297171727945",
             "label": "Predial",
             "mode": "leads",
+            "adsets": true,
             "leadTypes": [
               [
                 "onsite_conversion.lead_grouped",

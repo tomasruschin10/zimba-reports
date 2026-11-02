@@ -11,7 +11,7 @@ import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { webcrypto as crypto } from "node:crypto";
-import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails, metaDiag, metaProbe } from "./fetchers/meta.js";
+import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails, metaDiag, metaProbe, fetchMetaAdsetDaily, fetchMetaStatuses } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily, fetchTiktokAdDaily } from "./fetchers/tiktok.js";
 import { fetchPinterestCampaignDaily } from "./fetchers/pinterest.js";
@@ -60,6 +60,8 @@ async function buildClient(client) {
   const demoRows = [];      // {account, date, age, gender, ...}
   const deviceRows = [];    // {account, date, device, ...}
   let prev; // último reporte publicado (se baja solo si hace falta)
+  const adsetRows = [];       // {account, date, campaign_name, adset_name, ...} (solo cuentas con adsets:true)
+  const status = {};          // {account: {campaigns:[{name,status,budget}], adsets:[...]}}
   let thumbnails = {};      // { ad_name: thumbnail_url }
   const accounts = [];
   const accountModes = {};
@@ -123,6 +125,14 @@ async function buildClient(client) {
         const dev = await fetchMetaDevices({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
         for (const r of dev) deviceRows.push({ account: acc.label, ...curTag, ...r });
       } catch (e) { console.warn(`  dispositivo ${acc.label}: ${e.message}`); }
+      if (acc.adsets) {
+        try {
+          const ar = await fetchMetaAdsetDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
+          for (const r of ar) adsetRows.push({ account: acc.label, ...curTag, ...r });
+        } catch (e) { console.warn(`  grupos ${acc.label}: ${e.message}`); }
+        try { status[acc.label] = await fetchMetaStatuses({ adAccountId: acc.id }); }
+        catch (e) { console.warn(`  estados ${acc.label}: ${e.message}`); }
+      }
       const adNames = [...new Set(ads.map((r) => r.ad_name))];
       if (adNames.length) { // sin anuncios no pedimos miniaturas (si no, trae TODOS los de la cuenta)
         try {
@@ -239,6 +249,8 @@ async function buildClient(client) {
     accountPlatforms,
     campaignRows,
     adRows,
+    adsetRows,
+    status,
     demoRows,
     deviceRows,
     thumbnails,
