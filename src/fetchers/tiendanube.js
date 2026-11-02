@@ -55,6 +55,20 @@ async function fetchOrders(storeId, token, since, until) {
 }
 
 // config: { storeId, tokenEnv }. since/until: 'YYYY-MM-DD'.
+// Tienda Nube devuelve las fechas en UTC. Si cortamos el día en UTC, una venta
+// del martes a las 22:00 en Argentina cae en el miércoles, y los totales por día
+// (y el cierre de cada mes) no coinciden con el panel de Tienda Nube ni con Meta,
+// que reportan en hora argentina. Pasamos todo a UTC−3 antes de tomar la fecha.
+function fechaART(raw, tz) {
+  if (!raw) return "";
+  let txt = String(raw).trim().replace(" ", "T");
+  // Sin zona explícita: Tienda Nube lo manda en UTC (o con timezone aparte).
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(txt)) txt += (!tz || /utc/i.test(tz)) ? "Z" : "";
+  const d = new Date(txt);
+  if (isNaN(d)) return String(raw).slice(0, 10);
+  return new Date(d.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
 export async function fetchTiendanube(config, since, until) {
   const storeId = String(config.storeId || "").trim();
   if (!storeId) throw new Error("Falta sources.tiendanube.storeId en clients.json");
@@ -74,7 +88,7 @@ export async function fetchTiendanube(config, since, until) {
 
   for (const o of orders) {
     const rawDate = (o.completed_at?.date ?? o.completed_at) || o.created_at || "";
-    const date = String(rawDate).slice(0, 10);
+    const date = fechaART(rawDate, o.completed_at?.timezone);
     if (!date) continue;
     const total = Number(o.total) || 0;
     const pago = o.payment_status;
