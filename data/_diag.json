@@ -1,5 +1,5 @@
 {
- "at": "2026-11-01T23:09:26.558Z",
+ "at": "2026-11-02T03:09:25.814Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -245,7 +245,7 @@
       "clicks": "153",
       "date_start": "2026-09-22"
      },
-     "conGasto": 441
+     "conGasto": 442
     },
     {
      "level": "account",
@@ -563,7 +563,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 350,
+     "filas": 351,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -579,7 +579,7 @@
       "clicks": "174",
       "date_start": "2026-09-01"
      },
-     "conGasto": 316
+     "conGasto": 317
     }
    ]
   }
