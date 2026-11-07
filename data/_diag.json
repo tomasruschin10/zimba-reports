@@ -1,5 +1,5 @@
 {
- "at": "2026-11-07T16:50:32.619Z",
+ "at": "2026-11-07T17:12:30.069Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -41,7 +41,8 @@
       "actions",
       "action_values",
       "date_start",
-      "date_stop"
+      "date_stop",
+      "account_id"
      ],
      "muestra": {
       "spend": "77578.18",
