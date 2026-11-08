@@ -1,5 +1,5 @@
 {
- "at": "2026-11-08T17:00:12.733Z",
+ "at": "2026-11-08T17:12:48.336Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -611,7 +611,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2446,
+     "filas": 2447,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -629,7 +629,7 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 2431
+     "conGasto": 2432
     },
     {
      "level": "account",
