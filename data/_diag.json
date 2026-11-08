@@ -1,5 +1,5 @@
 {
- "at": "2026-11-07T23:12:24.154Z",
+ "at": "2026-11-08T03:11:39.415Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -30,7 +30,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 4490,
+     "filas": 4492,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -154,7 +154,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1637,
+     "filas": 1638,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -171,7 +171,7 @@
       "clicks": "0",
       "date_start": "2026-07-01"
      },
-     "conGasto": 1631
+     "conGasto": 1632
     },
     {
      "level": "account",
@@ -227,7 +227,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 535,
+     "filas": 538,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -246,7 +246,7 @@
       "clicks": "153",
       "date_start": "2026-09-22"
      },
-     "conGasto": 499
+     "conGasto": 503
     },
     {
      "level": "account",
@@ -447,7 +447,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 920,
+     "filas": 922,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -463,7 +463,7 @@
       "clicks": "0",
       "date_start": "2026-09-08"
      },
-     "conGasto": 915
+     "conGasto": 917
     },
     {
      "level": "account",
@@ -564,7 +564,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 387,
+     "filas": 389,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -580,7 +580,7 @@
       "clicks": "174",
       "date_start": "2026-09-01"
      },
-     "conGasto": 351
+     "conGasto": 353
     }
    ]
   },
@@ -590,7 +590,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 408,
+     "filas": 409,
      "clavesPrimeraFila": [
       "campaign_name",
       "spend",
@@ -606,13 +606,13 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 398
+     "conGasto": 399
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2410,
+     "filas": 2412,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -630,13 +630,13 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 2395
+     "conGasto": 2397
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1227,
+     "filas": 1235,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -653,13 +653,13 @@
       "clicks": "74",
       "date_start": "2026-09-01"
      },
-     "conGasto": 1191
+     "conGasto": 1199
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 349,
+     "filas": 351,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -675,13 +675,13 @@
       "clicks": "503",
       "date_start": "2026-09-01"
      },
-     "conGasto": 333
+     "conGasto": 335
     },
     {
      "level": "adset",
      "fields": "adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2075,
+     "filas": 2079,
      "clavesPrimeraFila": [
       "adset_name",
       "campaign_name",
@@ -698,7 +698,7 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 2062
+     "conGasto": 2066
     }
    ]
   }
