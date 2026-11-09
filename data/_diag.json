@@ -1,5 +1,5 @@
 {
- "at": "2026-11-09T09:42:05.099Z",
+ "at": "2026-11-09T10:11:55.421Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -56,7 +56,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 2621,
+     "filas": 2623,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -74,7 +74,7 @@
       "clicks": "234",
       "date_start": "2026-07-01"
      },
-     "conGasto": 2516
+     "conGasto": 2518
     },
     {
      "level": "account",
@@ -252,7 +252,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 934,
+     "filas": 935,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
