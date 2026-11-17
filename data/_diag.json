@@ -1,5 +1,5 @@
 {
- "at": "2026-11-17T03:14:41.710Z",
+ "at": "2026-11-17T09:41:02.170Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -7,7 +7,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 998,
+     "filas": 1005,
      "clavesPrimeraFila": [
       "campaign_name",
       "spend",
@@ -24,13 +24,13 @@
       "clicks": "514",
       "date_start": "2026-07-01"
      },
-     "conGasto": 985
+     "conGasto": 992
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 4924,
+     "filas": 4943,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -41,7 +41,8 @@
       "actions",
       "action_values",
       "date_start",
-      "date_stop"
+      "date_stop",
+      "account_id"
      ],
      "muestra": {
       "spend": "77578.18",
@@ -49,13 +50,13 @@
       "clicks": "562",
       "date_start": "2026-07-01"
      },
-     "conGasto": 4028
+     "conGasto": 4047
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 2759,
+     "filas": 2775,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -73,13 +74,13 @@
       "clicks": "234",
       "date_start": "2026-07-01"
      },
-     "conGasto": 2650
+     "conGasto": 2666
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 830,
+     "filas": 836,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -96,7 +97,7 @@
       "clicks": "1602",
       "date_start": "2026-07-01"
      },
-     "conGasto": 806
+     "conGasto": 812
     }
    ]
   },
@@ -106,7 +107,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 417,
+     "filas": 420,
      "clavesPrimeraFila": [
       "campaign_name",
       "spend",
@@ -123,13 +124,13 @@
       "clicks": "47",
       "date_start": "2026-07-01"
      },
-     "conGasto": 417
+     "conGasto": 420
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 717,
+     "filas": 722,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -147,13 +148,13 @@
       "clicks": "46",
       "date_start": "2026-07-01"
      },
-     "conGasto": 704
+     "conGasto": 709
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1740,
+     "filas": 1754,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -170,13 +171,13 @@
       "clicks": "0",
       "date_start": "2026-07-01"
      },
-     "conGasto": 1734
+     "conGasto": 1748
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 494,
+     "filas": 497,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -193,7 +194,7 @@
       "clicks": "139",
       "date_start": "2026-07-01"
      },
-     "conGasto": 377
+     "conGasto": 379
     }
    ]
   },
@@ -226,7 +227,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 624,
+     "filas": 631,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -245,13 +246,13 @@
       "clicks": "153",
       "date_start": "2026-09-22"
      },
-     "conGasto": 580
+     "conGasto": 585
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1074,
+     "filas": 1084,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -269,7 +270,7 @@
       "clicks": "36",
       "date_start": "2026-09-22"
      },
-     "conGasto": 949
+     "conGasto": 962
     },
     {
      "level": "account",
@@ -288,7 +289,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 369,
+     "filas": 371,
      "clavesPrimeraFila": [
       "actions",
       "date_start",
@@ -305,37 +306,39 @@
       "clicks": "1011",
       "date_start": "2026-09-01"
      },
-     "conGasto": 326
+     "conGasto": 328
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2989,
+     "filas": 3006,
      "clavesPrimeraFila": [
-      "actions",
-      "date_start",
-      "date_stop",
-      "clicks",
-      "impressions",
-      "spend",
       "ad_name",
       "adset_name",
-      "campaign_name"
+      "campaign_name",
+      "spend",
+      "impressions",
+      "clicks",
+      "actions",
+      "action_values",
+      "date_start",
+      "date_stop",
+      "account_id"
      ],
      "muestra": {
-      "spend": "37.9",
-      "impressions": "21",
-      "clicks": "4",
+      "spend": "6106.98",
+      "impressions": "9363",
+      "clicks": "846",
       "date_start": "2026-09-01"
      },
-     "conGasto": 2825
+     "conGasto": 2841
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1475,
+     "filas": 1486,
      "clavesPrimeraFila": [
       "actions",
       "age",
@@ -353,13 +356,13 @@
       "clicks": "99",
       "date_start": "2026-09-01"
      },
-     "conGasto": 1420
+     "conGasto": 1430
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 452,
+     "filas": 454,
      "clavesPrimeraFila": [
       "actions",
       "date_start",
@@ -376,7 +379,7 @@
       "clicks": "1620",
       "date_start": "2026-09-01"
      },
-     "conGasto": 411
+     "conGasto": 413
     }
    ]
   },
@@ -386,7 +389,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 152,
+     "filas": 155,
      "clavesPrimeraFila": [
       "campaign_name",
       "spend",
@@ -402,13 +405,13 @@
       "clicks": "29",
       "date_start": "2026-09-08"
      },
-     "conGasto": 152
+     "conGasto": 155
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 401,
+     "filas": 410,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -426,13 +429,13 @@
       "clicks": "29",
       "date_start": "2026-09-08"
      },
-     "conGasto": 401
+     "conGasto": 410
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1057,
+     "filas": 1065,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -448,7 +451,7 @@
       "clicks": "0",
       "date_start": "2026-09-08"
      },
-     "conGasto": 1052
+     "conGasto": 1060
     },
     {
      "level": "account",
@@ -467,7 +470,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 337,
+     "filas": 340,
      "clavesPrimeraFila": [
       "campaign_name",
       "spend",
@@ -483,13 +486,13 @@
       "clicks": "23",
       "date_start": "2026-09-01"
      },
-     "conGasto": 334
+     "conGasto": 337
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 1270,
+     "filas": 1279,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -507,13 +510,13 @@
       "clicks": "8",
       "date_start": "2026-09-01"
      },
-     "conGasto": 1216
+     "conGasto": 1226
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1374,
+     "filas": 1390,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -530,7 +533,7 @@
       "clicks": "0",
       "date_start": "2026-09-01"
      },
-     "conGasto": 1324
+     "conGasto": 1339
     },
     {
      "level": "account",
@@ -549,7 +552,7 @@
      "level": "campaign",
      "fields": "campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 470,
+     "filas": 472,
      "clavesPrimeraFila": [
       "campaign_name",
       "spend",
@@ -565,13 +568,13 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 460
+     "conGasto": 462
     },
     {
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2701,
+     "filas": 2719,
      "clavesPrimeraFila": [
       "ad_name",
       "adset_name",
@@ -589,13 +592,13 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 2686
+     "conGasto": 2704
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1404,
+     "filas": 1405,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -612,13 +615,13 @@
       "clicks": "74",
       "date_start": "2026-09-01"
      },
-     "conGasto": 1368
+     "conGasto": 1369
     },
     {
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 400,
+     "filas": 401,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -634,13 +637,13 @@
       "clicks": "503",
       "date_start": "2026-09-01"
      },
-     "conGasto": 384
+     "conGasto": 385
     },
     {
      "level": "adset",
      "fields": "adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 2345,
+     "filas": 2360,
      "clavesPrimeraFila": [
       "adset_name",
       "campaign_name",
@@ -657,7 +660,7 @@
       "clicks": "41",
       "date_start": "2026-09-01"
      },
-     "conGasto": 2332
+     "conGasto": 2347
     }
    ]
   }
