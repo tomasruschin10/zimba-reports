@@ -1,5 +1,5 @@
 {
- "at": "2026-11-17T09:41:02.170Z",
+ "at": "2026-11-17T10:12:21.471Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -177,7 +177,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "impression_device",
-     "filas": 497,
+     "filas": 498,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -194,7 +194,7 @@
       "clicks": "139",
       "date_start": "2026-07-01"
      },
-     "conGasto": 379
+     "conGasto": 380
     }
    ]
   },
@@ -314,22 +314,20 @@
      "breakdowns": null,
      "filas": 3006,
      "clavesPrimeraFila": [
-      "ad_name",
-      "adset_name",
-      "campaign_name",
-      "spend",
-      "impressions",
-      "clicks",
       "actions",
-      "action_values",
       "date_start",
       "date_stop",
-      "account_id"
+      "clicks",
+      "impressions",
+      "spend",
+      "ad_name",
+      "adset_name",
+      "campaign_name"
      ],
      "muestra": {
-      "spend": "6106.98",
-      "impressions": "9363",
-      "clicks": "846",
+      "spend": "37.9",
+      "impressions": "21",
+      "clicks": "4",
       "date_start": "2026-09-01"
      },
      "conGasto": 2841
@@ -435,7 +433,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1065,
+     "filas": 1066,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -451,7 +449,7 @@
       "clicks": "0",
       "date_start": "2026-09-08"
      },
-     "conGasto": 1060
+     "conGasto": 1061
     },
     {
      "level": "account",
@@ -516,7 +514,7 @@
      "level": "account",
      "fields": "impressions,clicks,spend,actions,action_values",
      "breakdowns": "age,gender",
-     "filas": 1390,
+     "filas": 1391,
      "clavesPrimeraFila": [
       "impressions",
       "clicks",
@@ -533,7 +531,7 @@
       "clicks": "0",
       "date_start": "2026-09-01"
      },
-     "conGasto": 1339
+     "conGasto": 1340
     },
     {
      "level": "account",
