@@ -112,6 +112,21 @@
     }
   },
   {
+    "slug": "mantra",
+    "name": "Mantra Beauty",
+    "usdRate": 1350,
+    "sources": {
+      "google": [
+        {
+          "enabled": true,
+          "customerId": "6001698719",
+          "label": "Mantra",
+          "mode": "sales"
+        }
+      ]
+    }
+  },
+  {
     "slug": "jufre",
     "name": "Jufré House 302",
     "usdRate": 1350,
