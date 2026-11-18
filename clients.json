@@ -203,39 +203,5 @@
         ]
       }
     }
-  },
-  {
-    "slug": "clinica",
-    "name": "Clínica de proyectos",
-    "usdRate": 1350,
-    "eurRate": 1700,
-    "defaultCurrency": "EUR",
-    "desde": "2026-10-01",
-    "embudoUrl": "https://clinica.muyapp.com/api/embudo",
-    "sources": {
-      "meta": {
-        "accounts": [
-          {
-            "id": "act_2852746164935148",
-            "label": "Meta",
-            "mode": "leads"
-          }
-        ]
-      },
-      "google": {
-        "enabled": true,
-        "customerId": "2985576870",
-        "label": "Google",
-        "mode": "leads",
-        "currency": "EUR"
-      },
-      "chatgpt": {
-        "enabled": true,
-        "label": "ChatGPT Ads",
-        "mode": "leads",
-        "currency": "EUR",
-        "keyEnv": "OPENAI_ADS_API_KEY_CLINICA"
-      }
-    }
   }
 ]

@@ -35,7 +35,6 @@ jobs:
           AGENCIA_PASSWORD: ${{ secrets.AGENCIA_PASSWORD }}
           TIENDANUBE_TOKEN_BACAN: ${{ secrets.TIENDANUBE_TOKEN_BACAN }}
           TIENDANUBE_TOKEN_CHILLOUT: ${{ secrets.TIENDANUBE_TOKEN_CHILLOUT }}
-          OPENAI_ADS_API_KEY_CLINICA: ${{ secrets.OPENAI_ADS_API_KEY_CLINICA }}
         run: npm run build
       - name: Deploy a gh-pages
         uses: peaceiris/actions-gh-pages@v4
