@@ -80,6 +80,16 @@
   .barwrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
   .barwrap .v{font-size:12px;margin-bottom:6px;white-space:nowrap}
   .barwrap .m{font-size:11px;color:var(--faint);margin-top:6px}
+  .emb{display:flex;flex-direction:column;gap:10px}
+  .embrow{display:grid;grid-template-columns:120px 1fr 90px 110px;align-items:center;gap:12px;font-size:14px}
+  .embl{color:var(--muted)}
+  .embbar{height:22px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+  .embbar i{display:block;height:100%;background:var(--accent);border-radius:5px}
+  .embv{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+  .embv small{font-weight:400;color:var(--faint);font-size:12px}
+  .embc{color:var(--muted);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+  .embfoot{font-size:12px;color:var(--faint);margin-top:4px}
+  @media (max-width:560px){.embrow{grid-template-columns:90px 1fr 70px;}.embc{display:none}}
 </style>
 </head>
 <body>
@@ -92,14 +102,17 @@
 const fx=(n)=>(n||0);
 // Lleva un monto desde su moneda de origen (cur: "ARS" por defecto, "USD" en TikTok)
 // a la moneda que estás viendo. Viendo ARS: USD→×rate. Viendo USD: ARS→÷rate.
+// EUR (ej. Clínica: ChatGPT y Google en euros) usa eurRate = pesos por euro.
 function toView(n, cur){
   n = n || 0;
-  const isUSD = cur === "USD";
-  if(currency === "USD") return isUSD ? n : (usdRate>0 ? n/usdRate : n);
-  return isUSD ? n*usdRate : n; // viendo ARS
+  const rate=(c)=>c==="USD"?(usdRate>0?usdRate:1):c==="EUR"?(eurRate>0?eurRate:1):1;
+  const from=cur||"ARS";
+  if(from===currency) return n;
+  return n*rate(from)/rate(currency);
 }
-const money=(n)=>"$"+(Math.round(fx(n))||0).toLocaleString("es-AR");
-const money2=(n)=>"$"+fx(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const sym=()=>currency==="EUR"?"€":"$";
+const money=(n)=>sym()+(Math.round(fx(n))||0).toLocaleString("es-AR");
+const money2=(n)=>sym()+fx(n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const dec=(n,d=2)=>(n||0).toFixed(d);
 const num=(n)=>(Math.round(n)||0).toLocaleString("es-AR");
 const roasCls=(r)=>r>=3?"good":r>=1.5?"mid":"low";
@@ -153,6 +166,7 @@ function brandOk(r){
 // si el usuario lo cambia en pantalla, se guarda en SU navegador (localStorage).
 let currency="ARS"; // ARS | USD
 let usdRate=1;      // se setea en el arranque
+let eurRate=0;      // pesos por euro (clients.json → eurRate); 0 = cliente sin euros
 
 // modo de la cuenta activa: "sales" (venta) o "leads" (leads/mensajes).
 // En "Todas" mostramos solo cuentas de venta (por ahora solo Minorista).
@@ -449,6 +463,8 @@ function render(){
     if(isGoogleAcct(k))return "Google ads - "+k;
     if(k==="TikTok")return "TikTok ads";
     if(k==="Pinterest")return "Pinterest ads";
+    if(DATA.accountPlatforms?.[k]==="chatgpt")return k;
+    if(k==="Meta")return "Meta ads";
     return "Meta ads - "+k;
   };
   const hoyStr=ymd(new Date());
@@ -482,8 +498,9 @@ function render(){
       cmpOpts.map(o=>`<option value="${o.k}" ${compare===o.k?"selected":""}>${o.l}</option>`).join("")+`</select>`+
     (compare!=="none"?`<span style="font-size:12px;color:${sinPrev?"var(--neg)":"var(--faint)"}">${sinPrev?"⚠ sin datos":R.pf+" → "+R.pt}</span>`:"")+
     `<span class="sep"></span>`+
-    `<select onchange="setCurrency(this.value)" title="Moneda"><option value="ARS" ${currency==="ARS"?"selected":""}>ARS $</option><option value="USD" ${currency==="USD"?"selected":""}>USD $</option></select>`+
+    `<select onchange="setCurrency(this.value)" title="Moneda"><option value="ARS" ${currency==="ARS"?"selected":""}>ARS $</option><option value="USD" ${currency==="USD"?"selected":""}>USD $</option>${eurRate>0?`<option value="EUR" ${currency==="EUR"?"selected":""}>EUR €</option>`:""}</select>`+
     (currency==="USD"?`<span style="font-size:12px;color:var(--faint)">1 USD =</span><input type="number" id="usdRateInput" class="dt" style="width:88px" value="${usdRate}" min="1" oninput="setRate(this.value)"><span style="font-size:12px;color:var(--faint)">ARS</span>`:"")+
+    (eurRate>0?`<span style="font-size:12px;color:var(--faint)">1 EUR =</span><input type="number" id="eurRateInput" class="dt" style="width:88px" value="${eurRate}" min="1" oninput="setEurRate(this.value)"><span style="font-size:12px;color:var(--faint)">ARS</span>`:"")+
     `</div>`;
 
   // Sello del header: fechas en castellano y "actualizado hoy/ayer a las HH:MM".
@@ -648,6 +665,7 @@ function render(){
     ${currency==="USD"?`<div class="aviso" style="margin-top:14px">Valores convertidos a <b>USD</b> a un tipo de cambio de <b>$${num(usdRate)}</b> (editable arriba). Es una conversión de referencia con la cotización de hoy: montos de fechas pasadas no reflejan el dólar de ese día.</div>`:""}
     <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${mode==="leads"?(hasForm?(hasMsg?"leads y mensajes":"leads"):"mensajes"):"venta"} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
+    ${embudoHTML(R)}
 
     <p class="eyebrow">Por campaña${stat?` <label style="float:right;font-weight:500;font-size:13px;color:var(--muted);text-transform:none;letter-spacing:0;cursor:pointer"><input type="checkbox" ${soloActivas?"checked":""} onchange="setActivas(this.checked)" style="vertical-align:-2px"> Solo campañas activas</label>`:""}</p>
     <div class="tblcard scroll"><table>
@@ -741,9 +759,38 @@ function render(){
   attachCharts();
 }
 
+// ── Embudo (ej. Clínica): formularios del sitio → CRM → reuniones → propuestas → ventas.
+// Viene de DATA.embudo.rows ({date, segmento, fuente, formularios, en_crm, reuniones, propuestas, ventas}),
+// fechado por el día del formulario. El costo usa la inversión de TODAS las cuentas del período.
+function embudoHTML(R){
+  const E=DATA.embudo; if(!E||!E.rows||!E.rows.length) return "";
+  const rows=E.rows.filter(r=>inRange(r.date,R.from,R.to));
+  const K=[["formularios","Formularios"],["en_crm","En seguimiento"],["reuniones","Reuniones"],["propuestas","Propuestas"],["ventas","Ventas"]];
+  const tot=(rr)=>{const t={};for(const [k] of K)t[k]=rr.reduce((a,r)=>a+(r[k]||0),0);return t;};
+  const T=tot(rows);
+  let inv=0;for(const r of DATA.campaignRows)if(inRange(r.date,R.from,R.to))inv+=toView(r.spend,r.cur);
+  const max=Math.max(1,T.formularios);
+  const steps=K.map(([k,l],i)=>{
+    const v=T[k], prev=i?T[K[i-1][0]]:0, pct=i&&prev>0?Math.round(v/prev*100):null;
+    return `<div class="embrow"><span class="embl">${l}</span><span class="embbar"><i style="width:${Math.max(1.5,v/max*100)}%"></i></span><span class="embv">${num(v)}${pct!=null?` <small>${pct}%</small>`:""}</span><span class="embc">${v>0&&inv>0?money(inv/v)+" c/u":"—"}</span></div>`;
+  }).join("");
+  const by=(key)=>{const m=new Map();for(const r of rows){const g=r[key]||"—";if(!m.has(g))m.set(g,[]);m.get(g).push(r);}
+    return [...m.entries()].map(([n,rr])=>({n,...tot(rr)})).sort((a,b)=>b.formularios-a.formularios);};
+  const tbl=(key,title)=>{const L=by(key);if(L.length<2)return "";return `<div class="tblcard scroll" style="margin-top:12px"><table><thead><tr><th style="text-align:left">${title}</th>${K.map(([,l])=>`<th>${l}</th>`).join("")}</tr></thead><tbody>${L.map(x=>`<tr><td>${x.n}</td>${K.map(([k])=>`<td>${num(x[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;};
+  return `<p class="eyebrow">Embudo <span style="font-weight:400;color:var(--faint);font-size:12px">· de los formularios de este período · costo con la inversión total</span></p>
+    <div class="card emb">${steps}<div class="embfoot">Inversión del período: <b>${money(inv)}</b></div></div>
+    ${tbl("segmento","Segmento")}${tbl("fuente","Fuente")}`;
+}
 function setView(k){view=k;render();}
 function setCompare(k){compare=k;render();}
 function setCurrency(k){currency=k;render();}
+function setEurRate(v){
+  const n=Number(v);
+  eurRate=(n>0)?n:1;
+  if(n>0) localStorage.setItem("zimba_eur_"+slug,String(n));
+  render();
+  requestAnimationFrame(()=>{const el=document.getElementById("eurRateInput");if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}});
+}
 function setRate(v){
   const n=Number(v);
   usdRate=(n>0)?n:1;
@@ -786,8 +833,25 @@ fetch(`./data/${slug}.json`)
     const guardado=Number(localStorage.getItem("zimba_usd_"+slug));
     usdRate=guardado>0?guardado:(Number(DATA.usdRate)>0?Number(DATA.usdRate):1000);
     if(DATA.defaultCurrency==="USD")currency="USD"; // clientes que reportan en dólares (ej. Terres)
+    const eurG=Number(localStorage.getItem("zimba_eur_"+slug));
+    eurRate=Number(DATA.eurRate)>0?(eurG>0?eurG:Number(DATA.eurRate)):0;
+    if(DATA.defaultCurrency==="EUR"&&eurRate>0)currency="EUR";
     // Con una sola cuenta (ej. Jufre, solo leads) o sin cuentas de venta, "Todas"
     // quedaría vacío: arrancamos directo en la primera cuenta.
+    // Embudo propio (ej. Clínica): si una plataforma no informa conversiones,
+    // sus leads son los formularios del sitio que llegaron desde ella (por día).
+    // Van como una fila aparte "Formularios del sitio" sin gasto, así el costo
+    // por lead de la cuenta sale bien y no se inventa a qué campaña pertenecen.
+    if(DATA.embudo?.rows?.length){
+      for(const acc of DATA.accounts){
+        const tieneLeads=DATA.campaignRows.some(r=>r.account===acc&&(r.leads||0)>0);
+        if(tieneLeads)continue;
+        for(const e of DATA.embudo.rows){
+          if(e.fuente!==acc||!e.formularios)continue;
+          DATA.campaignRows.push({account:acc,date:e.date,campaign_name:"Formularios del sitio",spend:0,impressions:0,clicks:0,purchases:0,revenue:0,leads:e.formularios});
+        }
+      }
+    }
     if(DATA.accounts.length===1)account=DATA.accounts[0];
     render();
   })
