@@ -16,6 +16,7 @@ import { fetchGoogleAll } from "./fetchers/google.js";
 import { fetchTiktokCampaignDaily, fetchTiktokAdDaily } from "./fetchers/tiktok.js";
 import { fetchPinterestCampaignDaily } from "./fetchers/pinterest.js";
 import { fetchTiendanube } from "./fetchers/tiendanube.js";
+import { fetchOpenaiCampaignDaily } from "./fetchers/openai.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "public");
@@ -72,7 +73,7 @@ async function buildClient(client) {
   for (const acc of meta?.accounts || []) {
     try {
       // Cuenta en dólares (ej. Terres): las filas llevan cur:"USD" y el dashboard convierte al sumar.
-      const curTag = acc.currency === "USD" ? { cur: "USD" } : {};
+      const curTag = acc.currency && acc.currency !== "ARS" ? { cur: acc.currency } : {};
       let camps = await fetchMetaCampaignDaily({ adAccountId: acc.id, leadTypes: acc.leadTypes }, since, until);
       // Control de cordura: si Meta devuelve resultados pero gasto E impresiones en 0
       // (pasó el 21/10 con Chill Out y Terres), los datos están rotos. En vez de
@@ -166,9 +167,11 @@ async function buildClient(client) {
       const { campaigns, adGroups, keywords } = await fetchGoogleAll({ customerId: g.customerId }, since, until);
       // Cuenta de Google en modo leads (ej. Terres): sus conversiones son leads, no compras.
       const asLeads = (r) => (g.mode === "leads" ? { ...r, leads: r.purchases, purchases: 0, revenue: 0 } : r);
-      for (const r of campaigns) campaignRows.push({ account: label, ...asLeads(r) });
-      googleAdGroups.push(...adGroups.map((r) => ({ account: label, ...asLeads(r) })));
-      googleKeywords.push(...keywords.map((r) => ({ account: label, ...asLeads(r) })));
+      // Cuenta en otra moneda (ej. Clínica en EUR): marca cur y el dashboard convierte.
+      const gCur = g.currency && g.currency !== "ARS" ? { cur: g.currency } : {};
+      for (const r of campaigns) campaignRows.push({ account: label, ...gCur, ...asLeads(r) });
+      googleAdGroups.push(...adGroups.map((r) => ({ account: label, ...gCur, ...asLeads(r) })));
+      googleKeywords.push(...keywords.map((r) => ({ account: label, ...gCur, ...asLeads(r) })));
       accounts.push(label);
       accountModes[label] = g.mode || "sales";
       accountPlatforms[label] = "google";
@@ -218,6 +221,37 @@ async function buildClient(client) {
     }
   }
 
+  // ── ChatGPT Ads (opcional; clients.json → sources.chatgpt) ──
+  const cg = client.sources.chatgpt;
+  if (cg?.enabled) {
+    const label = cg.label || "ChatGPT Ads";
+    try {
+      const camps = await fetchOpenaiCampaignDaily({ keyEnv: cg.keyEnv }, since, until);
+      const cur = cg.currency && cg.currency !== "ARS" ? { cur: cg.currency } : {};
+      for (const r of camps) campaignRows.push({ account: label, ...cur, ...r });
+      accounts.push(label);
+      accountModes[label] = cg.mode || "leads";
+      accountPlatforms[label] = "chatgpt";
+      console.log(`  ${client.slug}/${label}: ${camps.length} filas campaña (ChatGPT Ads)`);
+    } catch (e) {
+      console.warn(`  ChatGPT Ads ${label}: ${e.message}`);
+    }
+  }
+
+  // ── Embudo propio del cliente (opcional; clients.json → embudoUrl): solo conteos ──
+  let embudo = null;
+  if (client.embudoUrl) {
+    try {
+      const res = await fetch(client.embudoUrl, { signal: AbortSignal.timeout(30000) });
+      const j = await res.json();
+      if (!res.ok || !j.ok) throw new Error(j.error || `HTTP ${res.status}`);
+      embudo = { updatedAt: j.updatedAt, rows: (j.rows || []).filter((r) => r.date >= since) };
+      console.log(`  ${client.slug}/Embudo: ${embudo.rows.length} filas`);
+    } catch (e) {
+      console.warn(`  Embudo: ${e.message}`);
+    }
+  }
+
   // ── Tienda Nube (opcional): ventas REALES del ecommerce ──
   let tienda = null;
   const tn = client.sources.tiendanube;
@@ -233,7 +267,7 @@ async function buildClient(client) {
   }
 
   // Si NINGUNA fuente trajo nada, no generamos el cliente (evita publicar vacío).
-  if (accounts.length === 0 && !tienda) {
+  if (accounts.length === 0 && !tienda && !embudo) {
     console.warn(`  ✗ ${client.slug}: ninguna fuente devolvió datos, se omite`);
     return null;
   }
@@ -242,6 +276,7 @@ async function buildClient(client) {
     slug: client.slug,
     client: client.name,
     usdRate,
+    eurRate: Number(client.eurRate) > 0 ? Number(client.eurRate) : 0,
     defaultCurrency: client.defaultCurrency || "ARS",
     updatedAt: new Date().toISOString(),
     accounts,
@@ -258,6 +293,7 @@ async function buildClient(client) {
     googleKeywords,
     brandMatch: (Array.isArray(gSrc) ? gSrc.find((x) => x.brandMatch)?.brandMatch : gSrc?.brandMatch) || "",
     tienda,
+    embudo,
   };
 }
 
