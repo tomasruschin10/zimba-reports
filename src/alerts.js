@@ -63,7 +63,7 @@ const DESDE = [addDays(HOY, -8), `${MES}-01`].sort()[0];
 
 // ── Meta ────────────────────────────────────────────────────────────────────
 const META_STATUS = {
-  1: "activa", 2: "deshabilitada", 3: "con pago pendiente (Payment Needed)", 7: "en revisión de riesgo",
+  1: "activa", 2: "deshabilitada", 3: "pago rechazado", 7: "en revisión de riesgo",
   8: "pendiente de liquidación", 9: "en período de gracia", 100: "pendiente de cierre", 101: "cerrada",
 };
 async function metaGet(path, params) {
@@ -164,8 +164,8 @@ function evaluar(client, cuentas) {
   const detalle = (fechas) => cuentas.map((cta) => {
     const g = fechas.reduce((t, f) => t + conv(cta.dias[f]?.spend || 0, cta.moneda), 0);
     const l = fechas.reduce((t, f) => t + (cta.dias[f]?.leads || 0), 0);
-    return `${cta.plataforma} · ${cta.label}: gasto ${fmt(g, mon)}, ${Math.round(l)} leads${l ? `, CPL ${fmt(g / l, mon)}` : ""}`;
-  }).join("\n");
+    return `${cta.plataforma} ${fmt(g, mon)} · ${Math.round(l)} leads`;
+  }).join("  |  ");
 
   const rango = (desde, hasta) => { const out = []; for (let d = desde; d <= hasta; d = addDays(d, 1)) out.push(d); return out; };
   const mesHastaHoy = rango(`${MES}-01`, HOY);
@@ -178,15 +178,15 @@ function evaluar(client, cuentas) {
   for (const cta of cuentas) {
     const kEstado = `estado:${cta.plataforma}:${cta.id}`;
     if (!cta.activa) {
-      alertas.push({ key: kEstado, sticky: true, asunto: `🔴 ${cta.plataforma} ${cta.label} frenada: ${cta.estado}`,
-        cuerpo: `La cuenta ${cta.plataforma} "${cta.label}" (${cta.id}) figura ${cta.estado}. Los anuncios no están saliendo.\n\nRevisar facturación / medio de pago en la plataforma.` });
-    } else resueltas.push({ key: kEstado, asunto: `🟢 ${cta.plataforma} ${cta.label} volvió a estar activa`,
-      cuerpo: `La cuenta ${cta.plataforma} "${cta.label}" (${cta.id}) vuelve a figurar activa.` });
+      alertas.push({ key: kEstado, sticky: true, asunto: `🔴 ${cta.plataforma} frenada (${cta.estado})`,
+        cuerpo: `Los anuncios no están saliendo. Revisar medio de pago.` });
+    } else resueltas.push({ key: kEstado, asunto: `🟢 ${cta.plataforma} volvió a estar activa`,
+      cuerpo: `Los anuncios vuelven a salir.` });
 
     const ayerG = cta.dias[AYER]?.spend || 0, hoyG = cta.dias[HOY]?.spend || 0;
     if (cta.activa && HORA >= 12 && ayerG > 0 && hoyG === 0) {
-      alertas.push({ key: `singasto:${cta.id}:${HOY}`, asunto: `🔴 ${cta.plataforma} ${cta.label} no gastó nada hoy`,
-        cuerpo: `Son las ${HORA} hs y la cuenta ${cta.plataforma} "${cta.label}" no registra gasto hoy (ayer gastó ${fmt(conv(ayerG, cta.moneda), mon)}).\n\nPuede ser campañas pausadas, anuncios rechazados, presupuesto agotado o un problema de pago. Ojo: las plataformas reportan con algunas horas de demora.` });
+      alertas.push({ key: `singasto:${cta.id}:${HOY}`, asunto: `🔴 ${cta.plataforma} no gastó nada hoy`,
+        cuerpo: `Ayer gastó ${fmt(conv(ayerG, cta.moneda), mon)}. Revisar campañas pausadas, anuncios rechazados o pago.` });
     }
   }
 
@@ -194,7 +194,6 @@ function evaluar(client, cuentas) {
   //    tope diario = +20%, porque Meta puede gastar de más un día y compensar otro)
   if (a.presupuestoDiario) {
     a.presupuestoMensual ??= a.presupuestoDiario * diasDelMes(HOY);
-    a.gastoDiarioMax ??= Math.round(a.presupuestoDiario * 1.2);
   }
   if (a.presupuestoMensual) {
     const gMes = gasto(mesHastaHoy);
@@ -202,36 +201,36 @@ function evaluar(client, cuentas) {
     const proy = gMes / diasCorridos * diasDelMes(HOY);
     if (gMes > a.presupuestoMensual) {
       alertas.push({ key: `presu-pasado:${MES}`, asunto: `🔴 Nos pasamos del presupuesto del mes`,
-        cuerpo: `Gasto del mes: ${fmt(gMes, mon)} contra un presupuesto de ${fmt(a.presupuestoMensual, mon)}.\n\n${detalle(mesHastaHoy)}` });
+        cuerpo: `Llevamos ${fmt(gMes, mon)} (presupuesto ${fmt(a.presupuestoMensual, mon)}).\n${detalle(mesHastaHoy)}` });
     } else if (Number(HOY.slice(8)) >= 4 && proy > a.presupuestoMensual * 1.1) {
-      alertas.push({ key: `presu-ritmo:${semanaISO(HOY)}`, asunto: `🟠 Al ritmo actual nos pasamos del presupuesto`,
-        cuerpo: `Llevamos ${fmt(gMes, mon)} y al ritmo actual cerramos el mes en ~${fmt(proy, mon)} (presupuesto ${fmt(a.presupuestoMensual, mon)}).\n\n${detalle(mesHastaHoy)}` });
+      alertas.push({ key: `presu-ritmo:${semanaISO(HOY)}`, asunto: `🟠 Gastando más que el presupuesto`,
+        cuerpo: `Promedio ${fmt(gMes / diasCorridos, mon)}/día${a.presupuestoDiario ? ` vs ${fmt(a.presupuestoDiario, mon)}` : ""}. Cierre estimado ${fmt(proy, mon)} (presupuesto ${fmt(a.presupuestoMensual, mon)}).\n${detalle(mesHastaHoy)}` });
     }
   }
   if (a.gastoDiarioMax) {
     const gAyer = gasto([AYER]);
     if (gAyer > a.gastoDiarioMax) alertas.push({ key: `diario:${AYER}`, asunto: `🟠 Ayer gastamos ${fmt(gAyer, mon)} (tope ${fmt(a.gastoDiarioMax, mon)})`,
-      cuerpo: `Gasto de ayer (${AYER}): ${fmt(gAyer, mon)}, por encima del tope diario de ${fmt(a.gastoDiarioMax, mon)}.\n\n${detalle([AYER])}` });
+      cuerpo: detalle([AYER]) });
   }
 
   // 3) CPL (3 días completos, para que un día flojo no dispare)
   if (a.cplMax) {
     const g = gasto(ult3), l = leads(ult3);
     const cpl = l ? g / l : Infinity;
-    if (g > 0 && cpl > a.cplMax) alertas.push({ key: `cpl:${HOY}`, asunto: `🟠 CPL alto: ${l ? fmt(cpl, mon) : "sin leads"} (últimos 3 días)`,
-      cuerpo: `CPL de los últimos 3 días (${ult3[0]} a ${AYER}): ${l ? fmt(cpl, mon) : "sin leads"}, tope ${fmt(a.cplMax, mon)}.\nGasto ${fmt(g, mon)}, ${Math.round(l)} leads.\n\n${detalle(ult3)}` });
+    if (g > 0 && cpl > a.cplMax) alertas.push({ key: `cpl:${HOY}`, asunto: `🟠 Costo por lead alto: ${l ? fmt(cpl, mon) : "sin leads"}${a.cplObjetivo ? ` (objetivo ${fmt(a.cplObjetivo, mon)})` : ""}`,
+      cuerpo: `Últimos 3 días, tope ${fmt(a.cplMax, mon)}.\n${detalle(ult3)}` });
   }
 
   // 4) Leads
   if (a.leadsMinDia != null && HORA >= 8) {
     const l = leads([AYER]);
-    if (l < a.leadsMinDia) alertas.push({ key: `leads-dia:${AYER}`, asunto: `🟠 Ayer entraron solo ${Math.round(l)} leads (mínimo ${a.leadsMinDia})`,
-      cuerpo: `Leads de ayer (${AYER}): ${Math.round(l)}, mínimo esperado ${a.leadsMinDia}.\n\n${detalle([AYER])}` });
+    if (l < a.leadsMinDia) alertas.push({ key: `leads-dia:${AYER}`, asunto: `🟠 Ayer entraron ${Math.round(l)} leads${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}`,
+      cuerpo: detalle([AYER]) });
   }
   if (a.leadsMinSemana != null) {
     const l = leads(ult7);
     if (l < a.leadsMinSemana) alertas.push({ key: `leads-semana:${semanaISO(HOY)}`, asunto: `🟠 Últimos 7 días: ${Math.round(l)} leads (mínimo ${a.leadsMinSemana})`,
-      cuerpo: `Leads de los últimos 7 días (${ult7[0]} a ${AYER}): ${Math.round(l)}, mínimo esperado ${a.leadsMinSemana}.\n\n${detalle(ult7)}` });
+      cuerpo: detalle(ult7) });
   }
   return { alertas, resueltas };
 }
@@ -242,7 +241,7 @@ async function mandar(client, asunto, cuerpo) {
   // Slack (preferido): webhook del canal. Por cliente (alerts.slackEnv = nombre de la variable) o general.
   const hook = process.env[client.alerts.slackEnv || "SLACK_WEBHOOK_URL"];
   if (hook && !DRY) {
-    const text = `*[${client.name}] ${asunto}*\n${cuerpo}\n<${REPORT_BASE}/${client.slug}.html|Ver reporte>`;
+    const text = `*${client.name} · ${asunto}*  <${REPORT_BASE}/${client.slug}.html|reporte>${cuerpo ? `\n${cuerpo}` : ""}`;
     const res = await fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
     if (!res.ok) throw new Error(`Slack ${res.status}: ${await res.text()}`);
     console.log(`  💬 Slack: ${asunto}`);
@@ -275,18 +274,12 @@ function reglasTexto(client) {
   const goog = client.sources.google; const gs = (Array.isArray(goog) ? goog : goog ? [goog] : []).filter((g) => g.enabled);
   const ctas = [...[...(client.sources.meta?.accounts || []).map((x) => `Meta ${x.label}`), ...gs.map((g) => (!g.label || g.label === "Google" ? "Google" : `Google ${g.label}`)),
     ...(client.sources.tiktok?.enabled ? ["TikTok"] : [])].map((x) => x.replace(/^Meta (.+)$/, (m, l) => (l === client.name ? "Meta" : m)))];
-  const pm = a.presupuestoMensual ?? (a.presupuestoDiario && `${a.presupuestoDiario} × días del mes`);
-  const tope = a.gastoDiarioMax ?? (a.presupuestoDiario && Math.round(a.presupuestoDiario * 1.2));
-  const L = [`Se revisa cada hora: ${ctas.join(", ")}.`, ""];
-  L.push("• 🔴 Cuenta frenada: deja de figurar activa (pago rechazado, deshabilitada, en revisión). Avisa también cuando vuelve.");
-  L.push("• 🔴 Sin gasto: una cuenta que ayer gastó y hoy a las 12 hs no gastó nada.");
-  if (a.presupuestoDiario) L.push(`• 💰 Presupuesto: ${mon} ${a.presupuestoDiario}/día. Avisa si un día pasa de ${mon} ${tope}, si el mes pasa el presupuesto (${pm}) o si al ritmo actual lo va a pasar por más de 10%.`);
-  else if (a.presupuestoMensual) L.push(`• 💰 Presupuesto mensual ${mon} ${pm}.`);
-  const qLeads = a.contarMensajes ? "leads (forms + mensajes de WhatsApp + conversiones de Google/TikTok)" : "leads";
-  if (a.cplMax) L.push(`• 🟠 Costo por lead de los últimos 3 días arriba de ${mon} ${a.cplMax}${a.cplObjetivo ? ` (objetivo ${mon} ${a.cplObjetivo})` : ""}.`);
-  if (a.leadsMinDia != null) L.push(`• 🟠 Menos de ${a.leadsMinDia} ${qLeads} en el día${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}.`);
-  if (a.leadsMinSemana != null) L.push(`• 🟠 Menos de ${a.leadsMinSemana} leads en los últimos 7 días.`);
-  L.push("", "Cada alerta se manda una sola vez por día/semana/mes. Este mensaje se actualiza solo cuando cambian las reglas.");
+  const L = [`Revisa ${ctas.join(", ")} cada hora y avisa si:`];
+  L.push("🔴 una cuenta se frena o deja de gastar");
+  if (a.presupuestoDiario || a.presupuestoMensual) L.push(`🟠 el gasto va por encima del presupuesto (${a.presupuestoDiario ? `${mon} ${a.presupuestoDiario}/día` : `${mon} ${a.presupuestoMensual}/mes`})`);
+  if (a.leadsMinDia != null) L.push(`🟠 entran menos de ${a.leadsMinDia} leads en un día${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}`);
+  if (a.cplMax) L.push(`🟠 el costo por lead pasa ${mon} ${a.cplMax}${a.cplObjetivo ? ` (objetivo ${a.cplObjetivo})` : ""}`);
+  L.push("Todos los días a las 9 hs llega un ✅ si está todo bien.");
   return L.join("\n");
 }
 
@@ -328,9 +321,13 @@ async function main() {
     // Parte diario (desde las 9 hs, una vez por día): confirma que las alertas están vivas.
     // Si un día no llega, algo se cayó.
     if (HORA >= 9 && !st[`parte:${HOY}`] && !DRY) {
-      const linea = (cta) => `${cta.activa ? "✅" : "🔴"} ${cta.plataforma}: ${cta.estado} · ayer ${cta.moneda} ${(cta.dias[AYER]?.spend || 0).toFixed(0)}`;
-      const txt = [...cuentas.map(linea), ...errores.map((e) => `⚠️ ${e}`)].join("\n");
-      try { if (await mandar(client, "☀️ Parte diario: alertas funcionando", txt)) st[`parte:${HOY}`] = HOY; }
+      const caidas = cuentas.filter((c) => !c.activa).map((c) => `${c.plataforma} ${c.estado}`);
+      const gAyer = cuentas.reduce((t, c) => t + ((c.dias[AYER]?.spend || 0) * (c.moneda === "USD" ? 1 : 1 / (Number(client.usdRate) || 1))), 0);
+      const lAyer = cuentas.reduce((t, c) => t + (c.dias[AYER]?.leads || 0), 0);
+      const ok = !caidas.length && !errores.length;
+      const asunto = `${ok ? "✅ Todo en orden" : "⚠️ Revisar"} · ayer US$${Math.round(gAyer)} y ${Math.round(lAyer)} leads`;
+      const txt = [...caidas, ...errores].join(" | ");
+      try { if (await mandar(client, asunto, txt)) st[`parte:${HOY}`] = HOY; }
       catch (e) { fallos++; console.log(`  ✖ ${e.message}`); }
     }
     for (const al of alertas) {
