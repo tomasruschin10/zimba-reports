@@ -1,0 +1,27 @@
+name: Instalar cron de alertas en el servidor
+# Una sola vez: crea /root/disparar-alertas.sh (igual que disparar.sh del build)
+# y lo agenda cada hora en el crontab del droplet. Idempotente.
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/setup-cron-alertas.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  setup:
+    runs-on: [self-hosted, zimba]
+    steps:
+      - name: Instalar
+        run: |
+          cat > /root/disparar-alertas.sh <<'SH'
+          #!/bin/bash
+          curl -s -w "%{http_code}\n" -X POST -H "Authorization: Bearer $(cat /root/.gh_token)" -H "Accept: application/vnd.github+json" https://api.github.com/repos/tomasruschin10/zimba-reports/actions/workflows/alerts.yml/dispatches -d '{"ref":"main","inputs":{"modo":"normal"}}'
+          SH
+          chmod +x /root/disparar-alertas.sh
+          ( crontab -l 2>/dev/null | grep -v disparar-alertas.sh; echo '17 * * * * /root/disparar-alertas.sh >> /root/disparar-alertas.log 2>&1' ) | crontab -
+          echo "== crontab"; crontab -l
+          echo "== disparo de prueba"; /root/disparar-alertas.sh
+          { echo "$(date)"; crontab -l; echo "prueba: $(tail -1 /root/disparar-alertas.log 2>/dev/null)"; } > /tmp/res.txt
+          cd /tmp && rm -rf r && mkdir r && cd r && git init -q && cp /tmp/res.txt . && git -c user.name=bot -c user.email=bot@x add . && git -c user.name=bot -c user.email=bot@x commit -qm res \
+            && git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" HEAD:refs/heads/diag-cron
