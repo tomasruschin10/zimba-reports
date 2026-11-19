@@ -320,6 +320,14 @@ async function main() {
     if (st._fallos >= 3) alertas.push({ key: `apifalla:${HOY}`, asunto: "⚠ No se pudieron leer algunas cuentas",
       cuerpo: `Las alertas no pudieron leer estas cuentas en las últimas ${st._fallos} corridas:\n${errores.join("\n")}` });
 
+    // Parte diario (desde las 9 hs, una vez por día): confirma que las alertas están vivas.
+    // Si un día no llega, algo se cayó.
+    if (HORA >= 9 && !st[`parte:${HOY}`] && !DRY) {
+      const linea = (cta) => `${cta.activa ? "✅" : "🔴"} ${cta.plataforma}: ${cta.estado} · ayer ${cta.moneda} ${(cta.dias[AYER]?.spend || 0).toFixed(0)}`;
+      const txt = [...cuentas.map(linea), ...errores.map((e) => `⚠️ ${e}`)].join("\n");
+      try { if (await mandar(client, "☀️ Parte diario: alertas funcionando", txt)) st[`parte:${HOY}`] = HOY; }
+      catch (e) { fallos++; console.log(`  ✖ ${e.message}`); }
+    }
     for (const al of alertas) {
       if (st[al.key]) continue; // ya avisada en este período
       try { if (await mandar(client, al.asunto, al.cuerpo)) st[al.key] = HOY; }
