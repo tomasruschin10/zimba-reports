@@ -232,7 +232,8 @@ function evaluar(client, cuentas) {
   }
 
   // 3) CPL (3 días completos, para que un día flojo no dispare)
-  if (a.cplMax) {
+  // Leads y costo por lead: se miran una vez, a las 9 hs (con el día de ayer ya completo en las 3 plataformas).
+  if (a.cplMax && HORA >= 9) {
     const g = gasto(ult3), l = leads(ult3);
     const cpl = l ? g / l : Infinity;
     if (g > 0 && cpl > a.cplMax) alertas.push({ key: `cpl:${HOY}`, asunto: `🟠 Costo por lead alto: ${l ? fmt(cpl, mon) : "sin leads"}${a.cplObjetivo ? ` (objetivo ${fmt(a.cplObjetivo, mon)})` : ""}`,
@@ -240,12 +241,12 @@ function evaluar(client, cuentas) {
   }
 
   // 4) Leads
-  if (a.leadsMinDia != null && HORA >= 8) {
+  if (a.leadsMinDia != null && HORA >= 9) {
     const l = leads([AYER]);
     if (l < a.leadsMinDia) alertas.push({ key: `leads-dia:${AYER}`, asunto: `🟠 Ayer entraron ${Math.round(l)} leads${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}`,
       cuerpo: detalle([AYER]) });
   }
-  if (a.leadsMinSemana != null) {
+  if (a.leadsMinSemana != null && HORA >= 9) {
     const l = leads(ult7);
     if (l < a.leadsMinSemana) alertas.push({ key: `leads-semana:${semanaISO(HOY)}`, asunto: `🟠 Últimos 7 días: ${Math.round(l)} leads (mínimo ${a.leadsMinSemana})`,
       cuerpo: detalle(ult7) });
@@ -298,7 +299,7 @@ function reglasTexto(client) {
   if (a.presupuestoDiario || a.presupuestoMensual) L.push(`🟠 el gasto va por encima del presupuesto (${a.presupuestoDiario ? `${mon} ${a.presupuestoDiario}/día` : `${mon} ${a.presupuestoMensual}/mes`})`);
   if (a.leadsMinDia != null) L.push(`🟠 entran menos de ${a.leadsMinDia} leads en un día${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}`);
   if (a.cplMax) L.push(`🟠 el costo por lead pasa ${mon} ${a.cplMax}${a.cplObjetivo ? ` (objetivo ${a.cplObjetivo})` : ""}`);
-  L.push("Todos los días a las 9 hs llega un ✅ si está todo bien.");
+  L.push("Leads y costo por lead se revisan una vez por día a las 9 hs, con el día anterior completo. A esa hora también llega el resumen de ayer.");
   return L.join("\n");
 }
 
@@ -344,7 +345,8 @@ async function main() {
       const gAyer = cuentas.reduce((t, c) => t + ((c.dias[AYER]?.spend || 0) * (c.moneda === "USD" ? 1 : 1 / (Number(client.usdRate) || 1))), 0);
       const lAyer = cuentas.reduce((t, c) => t + (c.dias[AYER]?.leads || 0), 0);
       const ok = !caidas.length && !errores.length;
-      const asunto = `${ok ? "✅ Todo en orden" : "⚠️ Revisar"} · ayer US$${Math.round(gAyer)} y ${Math.round(lAyer)} leads`;
+      const cplAyer = lAyer > 0 ? gAyer / lAyer : 0;
+      const asunto = `${ok ? "✅ Todo en orden" : "⚠️ Revisar"} · ayer US$${Math.round(gAyer)}, ${Math.round(lAyer)} leads${lAyer ? `, CPL US$${cplAyer.toFixed(1)}` : ""}`;
       const txt = [...caidas, ...errores].join(" | ");
       try { if (await mandar(client, asunto, txt)) st[`parte:${HOY}`] = HOY; }
       catch (e) { fallos++; console.log(`  ✖ ${e.message}`); }
