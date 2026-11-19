@@ -54,8 +54,11 @@ jobs:
             dry)  node src/alerts.js --dry ;;
             *)    node src/alerts.js ;;
           esac
+      - name: ¿Toca publicar estado? (una vez por hora, en la corrida de los :02)
+        id: pub
+        run: echo "si=$([ "$(date +%M)" -lt 15 ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
       - name: Publicar estado en el reporte
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.modo == 'normal'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.modo == 'normal' && steps.pub.outputs.si == '1'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
