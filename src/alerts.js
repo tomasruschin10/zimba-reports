@@ -292,6 +292,7 @@ async function main() {
   let state = {};
   try { state = JSON.parse(await readFile(STATE_PATH, "utf8")); } catch {}
   let fallos = 0;
+  const estados = {}; // slug → estado para el reporte
 
   for (const client of clients) {
     console.log(`▶ ${client.name}`);
@@ -338,11 +339,20 @@ async function main() {
       try { if (await mandar(client, r.asunto, r.cuerpo)) delete st[r.key]; }
       catch (e) { fallos++; console.log(`  ✖ mail: ${e.message}`); }
     }
+    estados[client.slug] = {
+      at: AHORA.toISOString(), errores: errores.length,
+      cuentas: cuentas.map((c) => ({ plataforma: c.plataforma, label: c.label, activa: c.activa, estado: c.estado })),
+    };
     // Limpieza: claves con fecha de hace más de 40 días.
     for (const [k, v] of Object.entries(st)) if (typeof v === "string" && v < addDays(HOY, -40)) delete st[k];
   }
 
-  if (!DRY && !TEST && !REGLAS) { await mkdir(dirname(STATE_PATH), { recursive: true }); await writeFile(STATE_PATH, JSON.stringify(state, null, 1)); }
+  if (!DRY && !TEST && !REGLAS) {
+    await mkdir(dirname(STATE_PATH), { recursive: true }); await writeFile(STATE_PATH, JSON.stringify(state, null, 1));
+    // Estado para el reporte (el workflow lo publica en reportes.zimba.com.ar/data/alertas/<slug>.json)
+    const dir = join(ROOT, "alert-status"); await mkdir(dir, { recursive: true });
+    for (const [slug, e] of Object.entries(estados)) await writeFile(join(dir, `${slug}.json`), JSON.stringify(e));
+  }
   if (fallos) process.exitCode = 1;
 }
 

@@ -11,6 +11,9 @@ on:
         description: "normal | test (aviso de prueba) | reglas (publica qué alertas hay) | dry (solo loguea)"
         default: normal
 
+permissions:
+  contents: write
+
 concurrency:
   group: alertas
   cancel-in-progress: false
@@ -51,3 +54,12 @@ jobs:
             dry)  node src/alerts.js --dry ;;
             *)    node src/alerts.js ;;
           esac
+      - name: Publicar estado en el reporte
+        if: github.event_name == 'schedule' || github.event.inputs.modo == 'normal'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./alert-status
+          destination_dir: data/alertas
+          keep_files: true
+          cname: reportes.zimba.com.ar

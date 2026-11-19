@@ -41,4 +41,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
+          keep_files: true   # no borrar data/alertas/ (lo publica el workflow de alertas)
           cname: reportes.zimba.com.ar
