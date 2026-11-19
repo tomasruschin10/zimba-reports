@@ -1,6 +1,6 @@
 name: Instalar cron de alertas en el servidor
 # Crea /root/disparar-alertas.sh (igual que disparar.sh del build) y lo agenda cada 15 min.
-# Idempotente: correrlo de nuevo reemplaza la línea.
+# Idempotente: correrlo de nuevo reemplaza la línea (sin efectos extra).
 on:
   push:
     branches: [main]
