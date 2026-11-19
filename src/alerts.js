@@ -154,7 +154,12 @@ function evaluar(client, cuentas) {
     }
   }
 
-  // 2) Presupuesto
+  // 2) Presupuesto (presupuestoDiario arma el mensual y el tope diario si no vienen explícitos;
+  //    tope diario = +20%, porque Meta puede gastar de más un día y compensar otro)
+  if (a.presupuestoDiario) {
+    a.presupuestoMensual ??= a.presupuestoDiario * diasDelMes(HOY);
+    a.gastoDiarioMax ??= Math.round(a.presupuestoDiario * 1.2);
+  }
   if (a.presupuestoMensual) {
     const gMes = gasto(mesHastaHoy);
     const diasCorridos = Number(HOY.slice(8)) - 1 + Math.max(HORA, 1) / 24;
