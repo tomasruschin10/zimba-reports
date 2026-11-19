@@ -1,0 +1,5 @@
+Thu Nov 19 16:26:12 -03 2026
+30 6 * * * /root/disparar.sh >> /root/disparar.log 2>&1
+0 0,7,10,14,20 * * * /root/disparar.sh >> /root/disparar.log 2>&1
+2,17,32,47 * * * * /root/disparar-alertas.sh >> /root/disparar-alertas.log 2>&1
+prueba: 204
