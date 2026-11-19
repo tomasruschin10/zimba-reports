@@ -80,14 +80,18 @@ async function metaGet(path, params) {
     await new Promise((r) => setTimeout(r, 5000 * (i + 1)));
   }
 }
-async function leerMeta(acc) {
+const MSG_TYPE = "onsite_conversion.messaging_conversation_started_7d";
+async function leerMeta(acc, conMensajes) {
   const info = await metaGet(acc.id, { fields: "name,account_status,disable_reason,currency" });
   const ins = await metaGet(`${acc.id}/insights`, {
     level: "account", time_increment: "1", fields: "spend,actions",
     time_range: JSON.stringify({ since: DESDE, until: HOY }), limit: "100",
   });
   const dias = {};
-  for (const r of ins.data || []) dias[r.date_start] = { spend: Number(r.spend) || 0, leads: pickLeads(r.actions, acc.leadTypes) };
+  for (const r of ins.data || []) {
+    const msgs = conMensajes ? Number((r.actions || []).find((a) => a.action_type === MSG_TYPE)?.value) || 0 : 0;
+    dias[r.date_start] = { spend: Number(r.spend) || 0, leads: pickLeads(r.actions, acc.leadTypes) + msgs };
+  }
   const st = Number(info.account_status);
   return {
     plataforma: "Meta", label: acc.label, id: acc.id, moneda: info.currency || acc.currency || "USD",
@@ -278,10 +282,10 @@ function reglasTexto(client) {
   L.push("• 🔴 Sin gasto: una cuenta que ayer gastó y hoy a las 12 hs no gastó nada.");
   if (a.presupuestoDiario) L.push(`• 💰 Presupuesto: ${mon} ${a.presupuestoDiario}/día. Avisa si un día pasa de ${mon} ${tope}, si el mes pasa el presupuesto (${pm}) o si al ritmo actual lo va a pasar por más de 10%.`);
   else if (a.presupuestoMensual) L.push(`• 💰 Presupuesto mensual ${mon} ${pm}.`);
-  if (a.cplMax) L.push(`• 🟠 CPL de los últimos 3 días arriba de ${mon} ${a.cplMax}.`);
-  if (a.leadsMinDia != null) L.push(`• 🟠 Menos de ${a.leadsMinDia} leads en el día.`);
+  const qLeads = a.contarMensajes ? "leads (forms + mensajes de WhatsApp + conversiones de Google/TikTok)" : "leads";
+  if (a.cplMax) L.push(`• 🟠 Costo por lead de los últimos 3 días arriba de ${mon} ${a.cplMax}${a.cplObjetivo ? ` (objetivo ${mon} ${a.cplObjetivo})` : ""}.`);
+  if (a.leadsMinDia != null) L.push(`• 🟠 Menos de ${a.leadsMinDia} ${qLeads} en el día${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}.`);
   if (a.leadsMinSemana != null) L.push(`• 🟠 Menos de ${a.leadsMinSemana} leads en los últimos 7 días.`);
-  if (!a.cplMax && a.leadsMinDia == null) L.push("• ⏳ Leads y CPL: pendiente de conectar los leads reales (Looker).");
   L.push("", "Cada alerta se manda una sola vez por día/semana/mes. Este mensaje se actualiza solo cuando cambian las reglas.");
   return L.join("\n");
 }
@@ -302,7 +306,7 @@ async function main() {
     const cuentas = [];
     const errores = [];
     for (const acc of client.sources.meta?.accounts || []) {
-      try { cuentas.push(await leerMeta(acc)); } catch (e) { errores.push(`Meta ${acc.label}: ${e.message}`); }
+      try { cuentas.push(await leerMeta(acc, client.alerts.contarMensajes)); } catch (e) { errores.push(`Meta ${acc.label}: ${e.message}`); }
     }
     const goog = client.sources.google;
     for (const g of (Array.isArray(goog) ? goog : goog ? [goog] : []).filter((g) => g.enabled && g.customerId)) {

@@ -193,7 +193,13 @@
         "tomasruschin@gmail.com"
       ],
       "moneda": "USD",
-      "presupuestoDiario": 70
+      "presupuestoDiario": 70,
+      "contarMensajes": true,
+      "leadsObjetivoDia": 8,
+      "leadsMinDia": 6,
+      "leadsMinSemana": 45,
+      "cplObjetivo": 6.5,
+      "cplMax": 8.5
     }
   },
   {
