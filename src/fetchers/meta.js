@@ -78,7 +78,7 @@ function pickAction(arr, type) {
 // lista de alternativas por prioridad (se toma la primera que aparezca), para
 // no contar dos veces el mismo lead (ej. lead_grouped ya incluye leadgen.other).
 // Sin leadTypes, se usa el lead de siempre (conversión custom de Mayorista).
-function pickLeads(arr, leadTypes) {
+export function pickLeads(arr, leadTypes) {
   if (!leadTypes || !leadTypes.length) return pickAction(arr, LEAD_TYPE);
   if (!Array.isArray(arr)) return 0;
   let total = 0;

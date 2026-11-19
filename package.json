@@ -1,10 +1,16 @@
 {
   "name": "zimba-reports",
   "version": "1.0.0",
-  "description": "Reportes de Meta Ads por cliente. Build estático 3x/día vía GitHub Actions, publicado en GitHub Pages.",
+  "description": "Reportes de Meta Ads por cliente. Build est\u00e1tico 3x/d\u00eda v\u00eda GitHub Actions, publicado en GitHub Pages.",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "node src/build.js"
+    "build": "node src/build.js",
+    "alerts": "node src/alerts.js"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
   }
 }

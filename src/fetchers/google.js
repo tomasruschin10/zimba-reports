@@ -10,7 +10,7 @@
 // El customerId de cada cliente va en clients.json (sources.google.customerId).
 // ─────────────────────────────────────────────
 
-function creds() {
+export function creds() {
   const c = {
     developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
     clientId: process.env.GOOGLE_ADS_CLIENT_ID,
@@ -24,7 +24,7 @@ function creds() {
   return c;
 }
 
-async function getAccessToken(c) {
+export async function getAccessToken(c) {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -39,7 +39,7 @@ async function getAccessToken(c) {
 }
 
 // Ejecuta una query GAQL y devuelve las filas crudas (results).
-async function runQuery(c, accessToken, customerId, query) {
+export async function runQuery(c, accessToken, customerId, query) {
   const url = `https://googleads.googleapis.com/${c.version}/customers/${customerId}/googleAds:searchStream`;
   const res = await fetch(url, {
     method: "POST",

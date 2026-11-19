@@ -179,7 +179,19 @@
         }
       ]
     },
-    "defaultCurrency": "USD"
+    "defaultCurrency": "USD",
+    "alerts": {
+      "to": [
+        "azul@zimba.com.ar",
+        "tomasruschin@gmail.com"
+      ],
+      "moneda": "USD",
+      "presupuestoMensual": null,
+      "gastoDiarioMax": null,
+      "cplMax": 15,
+      "leadsMinDia": 3,
+      "leadsMinSemana": 35
+    }
   },
   {
     "slug": "predial",
