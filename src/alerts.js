@@ -96,6 +96,10 @@ async function leerMeta(acc, conMensajes) {
   return {
     plataforma: "Meta", label: acc.label, id: acc.id, moneda: info.currency || acc.currency || "USD",
     activa: st === 1, estado: META_STATUS[st] || `estado ${st}`, dias,
+    entregando: await (async () => { try {
+      const r = await metaGet(`${acc.id}/ads`, { fields: "id", effective_status: JSON.stringify(["ACTIVE"]), limit: "1" });
+      return (r.data || []).length > 0; } catch { return null; } })(),
+    desdeHora: 8, // Meta informa el gasto casi en vivo
   };
 }
 
@@ -118,6 +122,10 @@ async function leerGoogle(g) {
   return {
     plataforma: "Google", label: g.label || "Google", id: cid, moneda: cust?.customer?.currencyCode || "ARS",
     activa: st === "ENABLED", estado: st === "ENABLED" ? "activa" : st.toLowerCase(), dias,
+    entregando: await (async () => { try {
+      const r = await runQuery(c, token, cid, "SELECT campaign.id FROM campaign WHERE campaign.status = 'ENABLED' AND campaign.serving_status = 'SERVING' LIMIT 1");
+      return r.length > 0; } catch { return null; } })(),
+    desdeHora: 11, // Google informa el gasto con ~3 hs de atraso
   };
 }
 
@@ -147,6 +155,10 @@ async function leerTiktok(tk) {
   return {
     plataforma: "TikTok", label: tk.label || "TikTok", id, moneda: adv.currency || "USD",
     activa: st === "STATUS_ENABLE", estado: st === "STATUS_ENABLE" ? "activa" : st.replace("STATUS_", "").toLowerCase(), dias,
+    entregando: await (async () => { try {
+      const r = await tiktokGet("ad/get/", { advertiser_id: id, filtering: { secondary_status: "AD_STATUS_DELIVERY_OK" }, page_size: "1" });
+      return (r?.page_info?.total_number || (r?.list || []).length) > 0; } catch { return null; } })(),
+    desdeHora: 10, // TikTok informa con ~1-2 hs de atraso
   };
 }
 
@@ -184,7 +196,13 @@ function evaluar(client, cuentas) {
       cuerpo: `Los anuncios vuelven a salir.` });
 
     const ayerG = cta.dias[AYER]?.spend || 0, hoyG = cta.dias[HOY]?.spend || 0;
-    if (cta.activa && HORA >= 12 && ayerG > 0 && hoyG === 0) {
+    // Sin anuncios entregando (todo pausado, rechazado o sin presupuesto): cada hora.
+    const kEntrega = `entrega:${cta.plataforma}:${cta.id}`;
+    if (cta.activa && cta.entregando === false) {
+      alertas.push({ key: kEntrega, asunto: `🔴 ${cta.plataforma}: no hay ningún anuncio saliendo`,
+        cuerpo: `La cuenta está activa pero no tiene anuncios entregando (pausados, rechazados o sin presupuesto).` });
+    } else if (cta.entregando === true) resueltas.push({ key: kEntrega, asunto: `🟢 ${cta.plataforma}: los anuncios vuelven a salir`, cuerpo: "" });
+    if (cta.activa && HORA >= (cta.desdeHora || 10) && ayerG > 0 && hoyG === 0) {
       alertas.push({ key: `singasto:${cta.id}:${HOY}`, asunto: `🔴 ${cta.plataforma} no gastó nada hoy`,
         cuerpo: `Ayer gastó ${fmt(conv(ayerG, cta.moneda), mon)}. Revisar campañas pausadas, anuncios rechazados o pago.` });
     }
@@ -275,7 +293,8 @@ function reglasTexto(client) {
   const ctas = [...[...(client.sources.meta?.accounts || []).map((x) => `Meta ${x.label}`), ...gs.map((g) => (!g.label || g.label === "Google" ? "Google" : `Google ${g.label}`)),
     ...(client.sources.tiktok?.enabled ? ["TikTok"] : [])].map((x) => x.replace(/^Meta (.+)$/, (m, l) => (l === client.name ? "Meta" : m)))];
   const L = [`Revisa ${ctas.join(", ")} cada hora y avisa si:`];
-  L.push("🔴 una cuenta se frena o deja de gastar");
+  L.push("🔴 una cuenta se frena o no tiene ningún anuncio saliendo (aviso en menos de 1 hora)");
+  L.push("🔴 una cuenta no gastó nada en la mañana (desde las 8 hs en Meta)");
   if (a.presupuestoDiario || a.presupuestoMensual) L.push(`🟠 el gasto va por encima del presupuesto (${a.presupuestoDiario ? `${mon} ${a.presupuestoDiario}/día` : `${mon} ${a.presupuestoMensual}/mes`})`);
   if (a.leadsMinDia != null) L.push(`🟠 entran menos de ${a.leadsMinDia} leads en un día${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}`);
   if (a.cplMax) L.push(`🟠 el costo por lead pasa ${mon} ${a.cplMax}${a.cplObjetivo ? ` (objetivo ${a.cplObjetivo})` : ""}`);
@@ -342,7 +361,7 @@ async function main() {
     }
     estados[client.slug] = {
       at: AHORA.toISOString(), errores: errores.length,
-      cuentas: cuentas.map((c) => ({ plataforma: c.plataforma, label: c.label, activa: c.activa, estado: c.estado })),
+      cuentas: cuentas.map((c) => ({ plataforma: c.plataforma, label: c.label, activa: c.activa, estado: c.estado, entregando: c.entregando })),
     };
     // Limpieza: claves con fecha de hace más de 40 días.
     for (const [k, v] of Object.entries(st)) if (typeof v === "string" && v < addDays(HOY, -40)) delete st[k];
