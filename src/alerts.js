@@ -16,8 +16,8 @@
 // El estado se guarda en ALERTS_STATE_PATH (default ~/.zimba-alerts/state.json,
 // fuera del repo: el runner es el droplet propio y ese archivo persiste).
 //
-// Mail por SMTP (Brevo): SMTP_USER, SMTP_PASS, MAIL_FROM (opcional SMTP_HOST,
-// SMTP_PORT). Sin esas variables corre en seco: loguea lo que mandaría.
+// Mail por Gmail (GMAIL_USER + GMAIL_APP_PASSWORD) o SMTP (SMTP_USER, SMTP_PASS,
+// MAIL_FROM; opcional SMTP_HOST, SMTP_PORT). Sin esas variables corre en seco: loguea lo que mandaría.
 //
 // Uso:  node src/alerts.js            → chequeo normal
 //       node src/alerts.js --test     → manda un mail de prueba a cada cliente
@@ -236,15 +236,18 @@ async function mandar(client, asunto, cuerpo) {
   const to = client.alerts.to;
   const full = `${cuerpo}\n\n—\nReporte: ${REPORT_BASE}/${client.slug}.html\nAlerta automática de Zimba Reports (${HOY} ${HORA} hs ARG).`;
   const subject = `[${client.name}] ${asunto}`;
-  const { SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
-  if (DRY || !SMTP_USER || !SMTP_PASS || !MAIL_FROM) {
+  const { SMTP_USER, SMTP_PASS, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
+  const MAIL_FROM = process.env.MAIL_FROM || (GMAIL_USER && `Alertas Zimba <${GMAIL_USER}>`);
+  const smtp = SMTP_USER && SMTP_PASS
+    ? { host: process.env.SMTP_HOST || "smtp-relay.brevo.com", port: Number(process.env.SMTP_PORT || 587), secure: false, auth: { user: SMTP_USER, pass: SMTP_PASS } }
+    : GMAIL_USER && GMAIL_APP_PASSWORD ? { service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD.replace(/\s/g, "") } } : null;
+  if (DRY || !smtp || !MAIL_FROM) {
     console.log(`  ✉ (seco) → ${to.join(", ")}\n    ${subject}\n    ${full.replace(/\n/g, "\n    ")}`);
     return false;
   }
   if (!transport) {
     const nm = (await import("nodemailer")).default;
-    transport = nm.createTransport({ host: process.env.SMTP_HOST || "smtp-relay.brevo.com", port: Number(process.env.SMTP_PORT || 587),
-      secure: false, auth: { user: SMTP_USER, pass: SMTP_PASS } });
+    transport = nm.createTransport(smtp);
   }
   await transport.sendMail({ from: MAIL_FROM, to, subject, text: full });
   console.log(`  ✉ enviado → ${to.join(", ")}: ${subject}`);
