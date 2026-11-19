@@ -1,6 +1,6 @@
 name: Instalar cron de alertas en el servidor
-# Una sola vez: crea /root/disparar-alertas.sh (igual que disparar.sh del build)
-# y lo agenda cada hora en el crontab del droplet. Idempotente.
+# Crea /root/disparar-alertas.sh (igual que disparar.sh del build) y lo agenda cada 15 min.
+# Idempotente: correrlo de nuevo reemplaza la línea.
 on:
   push:
     branches: [main]
@@ -19,7 +19,7 @@ jobs:
           curl -s -w "%{http_code}\n" -X POST -H "Authorization: Bearer $(cat /root/.gh_token)" -H "Accept: application/vnd.github+json" https://api.github.com/repos/tomasruschin10/zimba-reports/actions/workflows/alerts.yml/dispatches -d '{"ref":"main","inputs":{"modo":"normal"}}'
           SH
           chmod +x /root/disparar-alertas.sh
-          ( crontab -l 2>/dev/null | grep -v disparar-alertas.sh; echo '17 * * * * /root/disparar-alertas.sh >> /root/disparar-alertas.log 2>&1' ) | crontab -
+          ( crontab -l 2>/dev/null | grep -v disparar-alertas.sh; echo '2,17,32,47 * * * * /root/disparar-alertas.sh >> /root/disparar-alertas.log 2>&1' ) | crontab -
           echo "== crontab"; crontab -l
           echo "== disparo de prueba"; /root/disparar-alertas.sh
           { echo "$(date)"; crontab -l; echo "prueba: $(tail -1 /root/disparar-alertas.log 2>/dev/null)"; } > /tmp/res.txt

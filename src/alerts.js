@@ -292,8 +292,8 @@ function reglasTexto(client) {
   const goog = client.sources.google; const gs = (Array.isArray(goog) ? goog : goog ? [goog] : []).filter((g) => g.enabled);
   const ctas = [...[...(client.sources.meta?.accounts || []).map((x) => `Meta ${x.label}`), ...gs.map((g) => (!g.label || g.label === "Google" ? "Google" : `Google ${g.label}`)),
     ...(client.sources.tiktok?.enabled ? ["TikTok"] : [])].map((x) => x.replace(/^Meta (.+)$/, (m, l) => (l === client.name ? "Meta" : m)))];
-  const L = [`Revisa ${ctas.join(", ")} cada hora y avisa si:`];
-  L.push("🔴 una cuenta se frena o no tiene ningún anuncio saliendo (aviso en menos de 1 hora)");
+  const L = [`Revisa ${ctas.join(", ")} cada 15 minutos y avisa si:`];
+  L.push("🔴 una cuenta se frena o no tiene ningún anuncio saliendo (aviso en menos de 15 min)");
   L.push("🔴 una cuenta no gastó nada en la mañana (desde las 8 hs en Meta)");
   if (a.presupuestoDiario || a.presupuestoMensual) L.push(`🟠 el gasto va por encima del presupuesto (${a.presupuestoDiario ? `${mon} ${a.presupuestoDiario}/día` : `${mon} ${a.presupuestoMensual}/mes`})`);
   if (a.leadsMinDia != null) L.push(`🟠 entran menos de ${a.leadsMinDia} leads en un día${a.leadsObjetivoDia ? ` (objetivo ${a.leadsObjetivoDia})` : ""}`);
