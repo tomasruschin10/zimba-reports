@@ -198,7 +198,8 @@
       "leadsObjetivoDia": 8,
       "leadsMinDia": 6,
       "cplObjetivo": 6.5,
-      "cplMax": 8.5
+      "cplMax": 8.5,
+      "frecuencia": "cada 15 minutos"
     }
   },
   {
