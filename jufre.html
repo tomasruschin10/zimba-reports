@@ -511,6 +511,17 @@ function render(){
   const hasMsg=!hasForm||DATA.campaignRows.some(r=>acctOk(r)&&(r.messages||0)>0);
   const stat=account!=="Todas"?statusOf(account):null;
   if(mode==="leads"){
+    // Costo por form y por mensaje con la inversión que corresponde a cada uno, no con la total.
+    // Cada campaña se clasifica por lo que trajo en toda la historia del reporte: solo forms → su
+    // inversión va a forms; solo mensajes → a mensajes; mixta → se reparte en proporción; sin
+    // resultados aún → a forms (o a mensajes si la cuenta no tiene forms).
+    if(hasForm&&hasMsg){
+      const mix=new Map();
+      for(const r of DATA.campaignRows){if(!acctOk(r))continue;const k=r.account+"|"+r.campaign_name;const o=mix.get(k)||{l:0,m:0};o.l+=r.leads||0;o.m+=r.messages||0;mix.set(k,o);}
+      const partir=(rows,tot)=>{let sL=0,sM=0;for(const r of rows){const o=mix.get(r.account+"|"+r.campaign_name)||{l:0,m:0};const sp=toView(r.spend,r.cur);const f=o.l+o.m>0?o.l/(o.l+o.m):1;sL+=sp*f;sM+=sp*(1-f);}
+        tot.spendForm=sL;tot.spendMsg=sM;tot.costPerLead=tot.leads>0?sL/tot.leads:0;tot.costPerMsg=tot.messages>0?sM/tot.messages:0;};
+      partir(cRows,t);partir(prevRows,tPrev);
+    }
     kpis=[
       {l:"Inversión",v:money(t.spend),c:t.spend,p:tPrev.spend,dir:0},
       ...(hasForm?[{l:"Leads",v:num(t.leads),c:t.leads,p:tPrev.leads,dir:1},
