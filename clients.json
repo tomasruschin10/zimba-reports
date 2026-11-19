@@ -177,7 +177,13 @@
           "label": "Google",
           "mode": "leads"
         }
-      ]
+      ],
+      "tiktok": {
+        "enabled": true,
+        "advertiserId": "7681708297316696065",
+        "label": "TikTok",
+        "mode": "leads"
+      }
     },
     "defaultCurrency": "USD",
     "alerts": {

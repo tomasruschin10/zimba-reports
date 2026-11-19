@@ -17,12 +17,13 @@ const BASE = "https://business-api.tiktok.com/open_api";
 const PURCHASE_METRIC = "complete_payment";        // nº de compras (pago completado)
 const ROAS_METRIC = "complete_payment_roas";       // ROAS de compras → revenue = spend * roas
 // Métricas a nivel campaña. campaign_name viene como "metric" (raro pero así es).
-const METRICS = ["campaign_name", "spend", "impressions", "clicks", PURCHASE_METRIC, ROAS_METRIC];
+// "conversion" = resultados del objetivo optimizado (en cuentas de leads, los leads).
+const METRICS = ["campaign_name", "spend", "impressions", "clicks", PURCHASE_METRIC, ROAS_METRIC, "conversion"];
 // Métricas a nivel anuncio. Igual que arriba pero pedimos ad_name en vez de campaign_name.
-const AD_METRICS = ["ad_name", "campaign_name", "spend", "impressions", "clicks", PURCHASE_METRIC, ROAS_METRIC];
+const AD_METRICS = ["ad_name", "campaign_name", "spend", "impressions", "clicks", PURCHASE_METRIC, ROAS_METRIC, "conversion"];
 const MAX_DAYS = 30;
 
-function creds() {
+export function creds() {
   const token = process.env.TIKTOK_ACCESS_TOKEN;
   if (!token) throw new Error("Falta TIKTOK_ACCESS_TOKEN");
   return { token, version: process.env.TIKTOK_API_VERSION || "v1.3" };
@@ -94,6 +95,7 @@ export async function fetchTiktokCampaignDaily(config, since, until) {
       clicks: Number(m.clicks) || 0,
       purchases: Number(m[PURCHASE_METRIC]) || 0,
       revenue: spend * roas,
+      leads: Number(m.conversion) || 0,
     });
   };
   await forEachWindow(ctx, since, until, (a, b) =>
@@ -128,6 +130,7 @@ export async function fetchTiktokAdDaily(config, since, until) {
       clicks: Number(m.clicks) || 0,
       purchases: Number(m[PURCHASE_METRIC]) || 0,
       revenue: spend * roas,
+      leads: Number(m.conversion) || 0,
     });
   };
   await forEachWindow(ctx, since, until, (a, b) =>

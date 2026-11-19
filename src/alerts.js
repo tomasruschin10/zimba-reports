@@ -30,6 +30,7 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { pickLeads } from "./fetchers/meta.js";
 import { creds, getAccessToken, runQuery } from "./fetchers/google.js";
+import { creds as tiktokCreds } from "./fetchers/tiktok.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TZ = "America/Argentina/Buenos_Aires";
@@ -111,6 +112,35 @@ async function leerGoogle(g) {
   return {
     plataforma: "Google", label: g.label || "Google", id: cid, moneda: cust?.customer?.currencyCode || "ARS",
     activa: st === "ENABLED", estado: st === "ENABLED" ? "activa" : st.toLowerCase(), dias,
+  };
+}
+
+// ── TikTok ──────────────────────────────────────────────────────────────────
+async function tiktokGet(path, params) {
+  const { token, version } = tiktokCreds();
+  const u = new URL(`https://business-api.tiktok.com/open_api/${version}/${path}`);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, typeof v === "string" ? v : JSON.stringify(v));
+  const body = await (await fetch(u, { headers: { "Access-Token": token }, signal: AbortSignal.timeout(60000) })).json();
+  if (body.code !== 0) throw new Error(`TikTok (code ${body.code}): ${body.message}`);
+  return body.data;
+}
+async function leerTiktok(tk) {
+  const id = String(tk.advertiserId);
+  const info = await tiktokGet("advertiser/info/", { advertiser_ids: [id], fields: ["name", "status", "currency"] });
+  const adv = info?.list?.[0] || {};
+  const rep = await tiktokGet("report/integrated/get/", {
+    advertiser_id: id, report_type: "BASIC", data_level: "AUCTION_ADVERTISER",
+    dimensions: ["stat_time_day"], metrics: ["spend", "conversion"], start_date: DESDE, end_date: HOY, page_size: "100",
+  });
+  const dias = {};
+  for (const it of rep?.list || []) {
+    const d = (it.dimensions?.stat_time_day || "").slice(0, 10);
+    if (d) dias[d] = { spend: Number(it.metrics?.spend) || 0, leads: tk.mode === "leads" ? Number(it.metrics?.conversion) || 0 : 0 };
+  }
+  const st = adv.status || "DESCONOCIDO";
+  return {
+    plataforma: "TikTok", label: tk.label || "TikTok", id, moneda: adv.currency || "USD",
+    activa: st === "STATUS_ENABLE", estado: st === "STATUS_ENABLE" ? "activa" : st.replace("STATUS_", "").toLowerCase(), dias,
   };
 }
 
@@ -240,6 +270,10 @@ async function main() {
     const goog = client.sources.google;
     for (const g of (Array.isArray(goog) ? goog : goog ? [goog] : []).filter((g) => g.enabled && g.customerId)) {
       try { cuentas.push(await leerGoogle(g)); } catch (e) { errores.push(`Google ${g.label}: ${e.message}`); }
+    }
+    const tk = client.sources.tiktok;
+    if (tk?.enabled && tk.advertiserId) {
+      try { cuentas.push(await leerTiktok(tk)); } catch (e) { errores.push(`TikTok ${tk.label || ""}: ${e.message}`); }
     }
     for (const cta of cuentas) console.log(`  ${cta.plataforma} ${cta.label}: ${cta.estado}, hoy ${(cta.dias[HOY]?.spend || 0).toFixed(2)} ${cta.moneda}, ayer ${(cta.dias[AYER]?.spend || 0).toFixed(2)} / ${cta.dias[AYER]?.leads || 0} leads`);
     errores.forEach((e) => console.log(`  ⚠ ${e}`));

@@ -187,14 +187,16 @@ async function buildClient(client) {
       // TikTok reporta importes en la moneda de la cuenta (USD). NO convertimos acá:
       // guardamos crudo + marca de moneda (cur) y el dashboard convierte según lo
       // que estés viendo, con el tipo de cambio del campito.
-      for (const r of camps) campaignRows.push({ account: label, cur: "USD", ...r });
+      // Modo leads (ej. Terres): "conversion" son leads, no hay compras. Modo ventas: se descarta.
+      const tkMode = (r) => (tk.mode === "leads" ? { ...r, purchases: 0, revenue: 0 } : { ...r, leads: 0 });
+      for (const r of camps) campaignRows.push({ account: label, cur: "USD", ...tkMode(r) });
       accounts.push(label);
       accountModes[label] = tk.mode || "sales";
       console.log(`  ${client.slug}/${label}: ${camps.length} campaña (TikTok Ads)`);
       // Nivel anuncio (creativos). Best-effort: si falla, quedan las campañas.
       try {
         const { rows: tkAds, thumbnails: tkThumbs } = await fetchTiktokAdDaily({ advertiserId: tk.advertiserId }, since, until);
-        for (const r of tkAds) adRows.push({ account: label, cur: "USD", ...r });
+        for (const r of tkAds) adRows.push({ account: label, cur: "USD", ...tkMode(r) });
         thumbnails = { ...thumbnails, ...tkThumbs };
         console.log(`  ${client.slug}/${label}: ${tkAds.length} ad (TikTok creativos)`);
       } catch (e) { console.warn(`  TikTok creativos ${label}: ${e.message}`); }
