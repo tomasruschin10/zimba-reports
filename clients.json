@@ -187,6 +187,7 @@
     },
     "defaultCurrency": "USD",
     "alerts": {
+      "canal": "#alertas en Slack",
       "to": [
         "azul@zimba.com.ar",
         "tomasruschin@gmail.com"

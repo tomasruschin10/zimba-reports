@@ -2,10 +2,13 @@ name: Alertas
 on:
   schedule:
     - cron: "17 * * * *"   # cada hora (UTC). Liviano: 2 llamadas por cuenta.
+  push:                    # si cambian las reglas, publica el resumen en Slack
+    branches: [main]
+    paths: [clients.json]
   workflow_dispatch:
     inputs:
       modo:
-        description: "normal | test (manda un aviso de prueba) | dry (solo loguea)"
+        description: "normal | test (aviso de prueba) | reglas (publica qué alertas hay) | dry (solo loguea)"
         default: normal
 
 concurrency:
@@ -40,7 +43,10 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
-          case "${{ github.event.inputs.modo }}" in
+          MODO="${{ github.event.inputs.modo }}"
+          [ "${{ github.event_name }}" = "push" ] && MODO=reglas
+          case "$MODO" in
+            reglas) node src/alerts.js --reglas ;;
             test) node src/alerts.js --test ;;
             dry)  node src/alerts.js --dry ;;
             *)    node src/alerts.js ;;

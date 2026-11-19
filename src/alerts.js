@@ -38,6 +38,7 @@ const TZ = "America/Argentina/Buenos_Aires";
 const ARGS = new Set(process.argv.slice(2));
 const DRY = ARGS.has("--dry");
 const TEST = ARGS.has("--test");
+const REGLAS = ARGS.has("--reglas");
 const STATE_PATH = process.env.ALERTS_STATE_PATH || join(homedir(), ".zimba-alerts", "state.json");
 const REPORT_BASE = "https://reportes.zimba.com.ar";
 
@@ -264,6 +265,27 @@ async function mandar(client, asunto, cuerpo) {
   return true;
 }
 
+// ── Resumen de reglas (se publica solo cuando cambia clients.json) ──────────
+function reglasTexto(client) {
+  const a = client.alerts; const mon = a.moneda || client.defaultCurrency || "USD";
+  const goog = client.sources.google; const gs = (Array.isArray(goog) ? goog : goog ? [goog] : []).filter((g) => g.enabled);
+  const ctas = [...[...(client.sources.meta?.accounts || []).map((x) => `Meta ${x.label}`), ...gs.map((g) => (!g.label || g.label === "Google" ? "Google" : `Google ${g.label}`)),
+    ...(client.sources.tiktok?.enabled ? ["TikTok"] : [])].map((x) => x.replace(/^Meta (.+)$/, (m, l) => (l === client.name ? "Meta" : m)))];
+  const pm = a.presupuestoMensual ?? (a.presupuestoDiario && `${a.presupuestoDiario} × días del mes`);
+  const tope = a.gastoDiarioMax ?? (a.presupuestoDiario && Math.round(a.presupuestoDiario * 1.2));
+  const L = [`Se revisa cada hora: ${ctas.join(", ")}.`, ""];
+  L.push("• 🔴 Cuenta frenada: deja de figurar activa (pago rechazado, deshabilitada, en revisión). Avisa también cuando vuelve.");
+  L.push("• 🔴 Sin gasto: una cuenta que ayer gastó y hoy a las 12 hs no gastó nada.");
+  if (a.presupuestoDiario) L.push(`• 💰 Presupuesto: ${mon} ${a.presupuestoDiario}/día. Avisa si un día pasa de ${mon} ${tope}, si el mes pasa el presupuesto (${pm}) o si al ritmo actual lo va a pasar por más de 10%.`);
+  else if (a.presupuestoMensual) L.push(`• 💰 Presupuesto mensual ${mon} ${pm}.`);
+  if (a.cplMax) L.push(`• 🟠 CPL de los últimos 3 días arriba de ${mon} ${a.cplMax}.`);
+  if (a.leadsMinDia != null) L.push(`• 🟠 Menos de ${a.leadsMinDia} leads en el día.`);
+  if (a.leadsMinSemana != null) L.push(`• 🟠 Menos de ${a.leadsMinSemana} leads en los últimos 7 días.`);
+  if (!a.cplMax && a.leadsMinDia == null) L.push("• ⏳ Leads y CPL: pendiente de conectar los leads reales (Looker).");
+  L.push("", "Cada alerta se manda una sola vez por día/semana/mes. Este mensaje se actualiza solo cuando cambian las reglas.");
+  return L.join("\n");
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
   const clients = JSON.parse(await readFile(join(ROOT, "clients.json"), "utf8")).filter((c) => c.alerts);
@@ -274,6 +296,7 @@ async function main() {
   for (const client of clients) {
     console.log(`▶ ${client.name}`);
     if (TEST) { await mandar(client, "Prueba de alertas", "Si ves esto, las alertas están andando."); continue; }
+    if (REGLAS) { await mandar(client, "📌 Qué alertas están activas", reglasTexto(client)); continue; }
     const st = (state[client.slug] ||= {});
     const cuentas = [];
     const errores = [];
@@ -311,7 +334,7 @@ async function main() {
     for (const [k, v] of Object.entries(st)) if (typeof v === "string" && v < addDays(HOY, -40)) delete st[k];
   }
 
-  if (!DRY && !TEST) { await mkdir(dirname(STATE_PATH), { recursive: true }); await writeFile(STATE_PATH, JSON.stringify(state, null, 1)); }
+  if (!DRY && !TEST && !REGLAS) { await mkdir(dirname(STATE_PATH), { recursive: true }); await writeFile(STATE_PATH, JSON.stringify(state, null, 1)); }
   if (fallos) process.exitCode = 1;
 }
 
