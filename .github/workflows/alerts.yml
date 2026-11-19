@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: alertas
+  group: alertas-${{ github.event_name }}   # push (reglas) no se pisa con las corridas cada 15 min
   cancel-in-progress: false
 
 jobs:
