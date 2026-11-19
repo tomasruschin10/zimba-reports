@@ -16,11 +16,12 @@
 // El estado se guarda en ALERTS_STATE_PATH (default ~/.zimba-alerts/state.json,
 // fuera del repo: el runner es el droplet propio y ese archivo persiste).
 //
-// Mail por Gmail (GMAIL_USER + GMAIL_APP_PASSWORD) o SMTP (SMTP_USER, SMTP_PASS,
+// Destino: Slack (SLACK_WEBHOOK_URL, o la variable que diga alerts.slackEnv).
+// Si no hay Slack, mail por Gmail (GMAIL_USER + GMAIL_APP_PASSWORD) o SMTP (SMTP_USER, SMTP_PASS,
 // MAIL_FROM; opcional SMTP_HOST, SMTP_PORT). Sin esas variables corre en seco: loguea lo que mandaría.
 //
 // Uso:  node src/alerts.js            → chequeo normal
-//       node src/alerts.js --test     → manda un mail de prueba a cada cliente
+//       node src/alerts.js --test     → manda un aviso de prueba a cada cliente
 //       node src/alerts.js --dry      → no manda ni guarda estado, solo loguea
 // ─────────────────────────────────────────────
 
@@ -233,7 +234,16 @@ function evaluar(client, cuentas) {
 // ── Mail ────────────────────────────────────────────────────────────────────
 let transport;
 async function mandar(client, asunto, cuerpo) {
-  const to = client.alerts.to;
+  // Slack (preferido): webhook del canal. Por cliente (alerts.slackEnv = nombre de la variable) o general.
+  const hook = process.env[client.alerts.slackEnv || "SLACK_WEBHOOK_URL"];
+  if (hook && !DRY) {
+    const text = `*[${client.name}] ${asunto}*\n${cuerpo}\n<${REPORT_BASE}/${client.slug}.html|Ver reporte>`;
+    const res = await fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    if (!res.ok) throw new Error(`Slack ${res.status}: ${await res.text()}`);
+    console.log(`  💬 Slack: ${asunto}`);
+    return true;
+  }
+  const to = client.alerts.to || [];
   const full = `${cuerpo}\n\n—\nReporte: ${REPORT_BASE}/${client.slug}.html\nAlerta automática de Zimba Reports (${HOY} ${HORA} hs ARG).`;
   const subject = `[${client.name}] ${asunto}`;
   const { SMTP_USER, SMTP_PASS, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
@@ -256,14 +266,14 @@ async function mandar(client, asunto, cuerpo) {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
-  const clients = JSON.parse(await readFile(join(ROOT, "clients.json"), "utf8")).filter((c) => c.alerts?.to?.length);
+  const clients = JSON.parse(await readFile(join(ROOT, "clients.json"), "utf8")).filter((c) => c.alerts);
   let state = {};
   try { state = JSON.parse(await readFile(STATE_PATH, "utf8")); } catch {}
   let fallos = 0;
 
   for (const client of clients) {
     console.log(`▶ ${client.name}`);
-    if (TEST) { await mandar(client, "Prueba de alertas", "Si te llegó este mail, las alertas están andando."); continue; }
+    if (TEST) { await mandar(client, "Prueba de alertas", "Si ves esto, las alertas están andando."); continue; }
     const st = (state[client.slug] ||= {});
     const cuentas = [];
     const errores = [];
