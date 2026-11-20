@@ -9,13 +9,22 @@
 // En clients.json: sources.ga4 = { propertyId: "432896457", googleRevenue: true }
 // ─────────────────────────────────────────────
 
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 const API = "https://analyticsdata.googleapis.com/v1beta";
+
+// Si no está como secret, se lee del archivo que guarda el workflow "GA4 · autorizar".
+function tokenFile() {
+  try { return readFileSync(join(homedir(), ".ga4_refresh_token"), "utf8").trim(); } catch { return ""; }
+}
 
 function creds() {
   const c = {
     clientId: process.env.GOOGLE_ADS_CLIENT_ID,
     clientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-    refreshToken: process.env.GA4_REFRESH_TOKEN,
+    refreshToken: process.env.GA4_REFRESH_TOKEN || tokenFile(),
   };
   const missing = Object.entries(c).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) throw new Error(`Faltan credenciales de GA4: ${missing.join(", ")}`);

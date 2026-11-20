@@ -1,0 +1,28 @@
+name: GA4 · autorizar
+# Canjea el código de autorización de Google (un solo uso) por un refresh token
+# de Analytics y lo guarda en el servidor (~/.ga4_refresh_token). El token nunca
+# sale del servidor ni aparece en los logs.
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "Código de autorización (de la URL localhost:4444/?code=...)"
+        required: true
+jobs:
+  auth:
+    runs-on: [self-hosted, zimba]
+    steps:
+      - name: Canjear código y guardar token
+        env:
+          CID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          CSEC: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          CODE: ${{ inputs.code }}
+        run: |
+          RESP=$(curl -s https://oauth2.googleapis.com/token \
+            --data-urlencode "code=$CODE" --data-urlencode "client_id=$CID" \
+            --data-urlencode "client_secret=$CSEC" --data-urlencode "redirect_uri=http://localhost:4444" \
+            --data-urlencode "grant_type=authorization_code")
+          RT=$(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("refresh_token",""))')
+          if [ -z "$RT" ]; then echo "Falló: $(echo "$RESP" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("error"),d.get("error_description"))')"; exit 1; fi
+          umask 077; echo -n "$RT" > "$HOME/.ga4_refresh_token"
+          echo "✓ Token de GA4 guardado en el servidor"
