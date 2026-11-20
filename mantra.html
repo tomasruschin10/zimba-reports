@@ -633,6 +633,27 @@ function render(){
   const adsPur=(()=>{let s=0;for(const r of DATA.campaignRows){if((DATA.accountModes[r.account]||"sales")==="sales"&&inRange(r.date,R.from,R.to))s+=r.purchases;}return s;})();
   const cobertura=hasTN&&tnSum.revenue>0?(adsRev/tnSum.revenue)*100:0;
 
+  // ── Toda la tienda según GA4 (facturación por fuente, último clic) ──
+  const g4Bucket=src=>{const x=(src||"").toLowerCase();
+    if(/^(ig|fb|facebook|instagram|meta)[^/]*\/ *(paid|cpc|ads)/.test(x))return"Meta Ads";
+    if(x==="google / cpc")return"Google Ads";
+    if(/tiktok/.test(x)&&/paid|cpc|ads/.test(x))return"TikTok Ads";
+    if(x==="(direct) / (none)")return"Directo";
+    if(/organic/.test(x))return"Orgánico (Google y otros)";
+    if(/instagram|facebook|^ig|^fb|tiktok/.test(x))return"Redes (sin pauta)";
+    if(/mail|newsletter|klaviyo|perfit|brevo/.test(x))return"Email";
+    return"Otros";};
+  const g4Rows=(()=>{if(!DATA.ga4Channels)return[];const m=new Map();
+    for(const r of DATA.ga4Channels){if(!inRange(r.date,R.from,R.to))continue;const b=g4Bucket(r.source);const o=m.get(b)||{name:b,sessions:0,purchases:0,revenue:0};o.sessions+=r.sessions;o.purchases+=r.purchases;o.revenue+=r.revenue;m.set(b,o);}
+    return[...m.values()].sort((a,b)=>b.revenue-a.revenue);})();
+  const g4Tot=g4Rows.reduce((a,r)=>({sessions:a.sessions+r.sessions,purchases:a.purchases+r.purchases,revenue:a.revenue+r.revenue}),{sessions:0,purchases:0,revenue:0});
+  const g4HTML=g4Rows.length?`<p class="eyebrow">Toda la tienda <span style="font-weight:400;color:var(--faint);font-size:12px">· según Analytics · por fuente</span></p>
+    <div class="tblcard scroll"><table>
+      <thead><tr><th style="text-align:left">Fuente</th><th>Sesiones</th><th>Compras</th><th>Facturación</th><th>% de la facturación</th></tr></thead>
+      <tbody>${g4Rows.map(r=>`<tr><td>${r.name}</td><td>${num(r.sessions)}</td><td>${num(r.purchases)}</td><td>${money(toView(r.revenue))}</td><td>${g4Tot.revenue>0?dec(r.revenue/g4Tot.revenue*100,1):"0"}%</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>Total</td><td>${num(g4Tot.sessions)}</td><td>${num(g4Tot.purchases)}</td><td>${money(toView(g4Tot.revenue))}</td><td>100%</td></tr></tfoot>
+    </table></div>`:"";
+
   // ── Google: tipo de campaña, ad groups, keywords (solo cuando la cuenta es Google) ──
   const isGoogle=isGoogleAcct(account);
   // En modo leads (ej. Terres) las tablas de Google muestran leads y costo por lead en vez de compras/ROAS/valor.
@@ -657,8 +678,10 @@ function render(){
     ${filtrosBar}
 
     ${currency==="USD"?`<div class="aviso" style="margin-top:14px">Valores convertidos a <b>USD</b> a un tipo de cambio de <b>$${num(usdRate)}</b> (editable arriba). Es una conversión de referencia con la cotización de hoy: montos de fechas pasadas no reflejan el dólar de ese día.</div>`:""}
-    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${mode==="leads"?(hasForm?(hasMsg?"leads y mensajes":"leads"):"mensajes"):"venta"} · vs período anterior</span></p>
+    <p class="eyebrow">Resumen <span style="font-weight:400;color:var(--faint);font-size:12px">· ${mode==="leads"?(hasForm?(hasMsg?"leads y mensajes":"leads"):"mensajes"):(DATA.revenueSource==="ga4"?"venta según Analytics":"venta")} · vs período anterior</span></p>
     <div class="grid">${kpiCards}</div>
+
+    ${g4HTML}
 
     <p class="eyebrow">Por campaña${stat?` <label style="float:right;font-weight:500;font-size:13px;color:var(--muted);text-transform:none;letter-spacing:0;cursor:pointer"><input type="checkbox" ${soloActivas?"checked":""} onchange="setActivas(this.checked)" style="vertical-align:-2px"> Solo campañas activas</label>`:""}</p>
     <div class="tblcard scroll"><table>
