@@ -192,7 +192,14 @@
       "leadsMinDia": 6,
       "cplObjetivo": 6.5,
       "cplMax": 8.5,
-      "frecuencia": "cuentas cada 15 min; leads y CPL a las 9 hs (dia anterior)"
+      "frecuencia": "cuentas cada 15 min; leads y CPL a las 9 hs (dia anterior)",
+      "leadsBigQuery": {
+        "table": "terres8.proveedores.zimba_lead_forms",
+        "project": "zimba-reports",
+        "location": "us-central1",
+        "dateField": "created_time",
+        "sourceField": "source"
+      }
     }
   },
   {
