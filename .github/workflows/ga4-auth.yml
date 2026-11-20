@@ -3,6 +3,8 @@ name: GA4 · autorizar
 # de Analytics y lo guarda en el servidor (~/.ga4_refresh_token). El token nunca
 # sale del servidor ni aparece en los logs.
 on:
+  push:
+    branches: [ga4-auth]
   workflow_dispatch:
     inputs:
       code:
@@ -12,12 +14,14 @@ jobs:
   auth:
     runs-on: [self-hosted, zimba]
     steps:
+      - uses: actions/checkout@v4
       - name: Canjear código y guardar token
         env:
           CID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
           CSEC: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
-          CODE: ${{ inputs.code }}
+          CODE_IN: ${{ inputs.code }}
         run: |
+          CODE="${CODE_IN:-$(cat .ga4-code 2>/dev/null)}"; export CODE
           CODE=$(python3 -c 'import os,urllib.parse as u;v=os.environ["CODE"].strip();q=u.parse_qs(u.urlparse(v).query);print(q.get("code",[v])[0])')
           RESP=$(curl -s https://oauth2.googleapis.com/token \
             --data-urlencode "code=$CODE" --data-urlencode "client_id=$CID" \
