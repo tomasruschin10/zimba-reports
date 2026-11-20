@@ -11,8 +11,8 @@ a{color:#1B1B1A}a:hover{color:#A8432A}
 .sm{display:none}
 .brand{white-space:nowrap}
 .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
-.fold{height:calc(100svh - 73px);min-height:520px;max-height:860px;box-sizing:border-box;padding-top:24px;padding-bottom:24px;display:flex;align-items:center}
-.fold .hero{width:100%;height:100%;grid-template-rows:100%}
+.fold{max-width:1248px;height:calc(100svh - 73px);min-height:520px;max-height:860px;box-sizing:border-box;padding-top:24px;padding-bottom:24px;display:flex;align-items:center}
+.fold .hero{width:100%;height:100%;grid-template-rows:100%;grid-template-columns:minmax(0,1fr) auto;gap:clamp(40px,6vw,96px)}
 .hero-img{width:auto !important;height:auto;max-width:100%;max-height:100%;justify-self:end;align-self:center}
 .hero{display:grid;grid-template-columns:1.4fr 1fr;gap:48px;align-items:center}
 .units{display:grid;grid-template-columns:1fr 1fr;gap:24px}
@@ -23,7 +23,7 @@ a{color:#1B1B1A}a:hover{color:#A8432A}
 @media (max-width:860px){
 .hero,.units,.gallery,.form{grid-template-columns:1fr}
 .fold{height:auto;max-height:none;padding-top:28px;padding-bottom:40px}
-.fold .hero{height:auto;grid-template-rows:auto}
+.fold .hero{height:auto;grid-template-rows:auto;grid-template-columns:1fr;gap:24px}
 .lg{display:none}.sm{display:inline}
 .hero-img{order:-1;max-height:360px;justify-self:center}
 .hero h1{font-size:34px !important}
@@ -52,7 +52,7 @@ a{color:#1B1B1A}a:hover{color:#A8432A}
 <div class="hero">
 <div style="display: flex; flex-direction: column; gap: min(22px, 2.6vh)">
 <div style="font-size: 14px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #A8432A">Villa Crespo · Jufré y Aráoz</div>
-<h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: clamp(40px, min(5.4vw, 10.5vh), 76px); line-height: 0.98; letter-spacing: -0.02em">Tu depto a estrenar en&nbsp;Palermo</h1>
+<h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 700; font-size: clamp(40px, min(5.8vw, 12vh), 70px); line-height: 0.98; letter-spacing: -0.02em"><span style="white-space: nowrap">Tu depto a estrenar</span><br>en Palermo</h1>
 <p style="margin: 0; font-size: 19px; line-height: 1.5; color: #4A4843; max-width: 560px">Obra terminada. Departamentos de 2 y 3 ambientes con balcón, y un penthouse de 117 m² en esquina.</p>
 <div style="display: flex; align-items: baseline; gap: 10px">
 <span style="font-size: 16px; color: #4A4843">Desde</span>
