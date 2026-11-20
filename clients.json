@@ -198,7 +198,8 @@
         "project": "zimba-reports",
         "location": "us-central1",
         "dateField": "created_time",
-        "sourceField": "source"
+        "sourceField": "source",
+        "canalSql": "CASE WHEN source = 'meta' OR (source = 'terresbot' AND utm_medium = 'ctwa') OR utm_source = 'fbpaid' THEN 'Meta' WHEN utm_source = 'google-ads' THEN 'Google' WHEN source = 'tiktok' OR (utm_source = 'tiktok' AND utm_medium = 'paid') THEN 'TikTok' END"
       }
     }
   },

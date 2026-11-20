@@ -35,8 +35,13 @@ async function accessToken() {
 export async function leadsPorDia(cfg, desde, tz = "America/Argentina/Buenos_Aires") {
   const at = await accessToken();
   const f = cfg.dateField || "created_time", s = cfg.sourceField || "source";
-  const query = `SELECT FORMAT_DATE('%Y-%m-%d', DATE(TIMESTAMP(${f}), '${tz}')) AS dia, IFNULL(CAST(${s} AS STRING), 'sin dato') AS fuente, COUNT(*) AS n
-    FROM \`${cfg.table}\` WHERE DATE(TIMESTAMP(${f}), '${tz}') >= DATE('${desde}') GROUP BY dia, fuente`;
+  // canalSql (opcional): expresión SQL que devuelve el canal pago del lead, o NULL si no viene de pauta.
+  // Con eso se cuentan solo los leads de pauta, agrupados por canal.
+  const fuenteSql = cfg.canalSql || `IFNULL(CAST(${s} AS STRING), 'sin dato')`;
+  const query = `SELECT dia, fuente, COUNT(*) AS n FROM (
+      SELECT FORMAT_DATE('%Y-%m-%d', DATE(TIMESTAMP(${f}), '${tz}')) AS dia, ${fuenteSql} AS fuente
+      FROM \`${cfg.table}\` WHERE DATE(TIMESTAMP(${f}), '${tz}') >= DATE('${desde}'))
+    WHERE fuente IS NOT NULL GROUP BY dia, fuente`;
   const res = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${cfg.project}/queries`, {
     method: "POST", headers: { Authorization: `Bearer ${at}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query, useLegacySql: false, location: cfg.location || "US", timeoutMs: 60000 }),
