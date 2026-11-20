@@ -1,0 +1,23 @@
+name: Landings
+# Publica las landings de clientes (carpeta landings/) en reportes.zimba.com.ar/<cliente>/
+on:
+  push:
+    branches: [main]
+    paths: ["landings/**"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: deploy-reportes
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: [self-hosted, zimba]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./landings
+          keep_files: true
+          cname: reportes.zimba.com.ar
