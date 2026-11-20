@@ -30,6 +30,7 @@ import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { pickLeads } from "./fetchers/meta.js";
+import { leadsPorDia } from "./fetchers/bigquery.js";
 import { creds, getAccessToken, runQuery } from "./fetchers/google.js";
 import { creds as tiktokCreds } from "./fetchers/tiktok.js";
 
@@ -165,19 +166,26 @@ async function leerTiktok(tk) {
 // ── Evaluación ──────────────────────────────────────────────────────────────
 const fmt = (n, mon) => `${mon === "USD" ? "US$" : "$"}${n.toLocaleString("es-AR", { maximumFractionDigits: n < 100 ? 2 : 0 })}`;
 
-function evaluar(client, cuentas) {
+function evaluar(client, cuentas, reales = null) {
   const a = client.alerts;
   const mon = a.moneda || client.defaultCurrency || "USD";
   const rate = Number(client.usdRate) || 1;
   // Pasa un monto de la moneda de la cuenta a la moneda de las alertas.
   const conv = (v, de) => (de === mon ? v : de === "USD" ? v * rate : mon === "USD" ? v / rate : v);
   const gasto = (fechas) => cuentas.reduce((s, cta) => s + fechas.reduce((t, f) => t + conv(cta.dias[f]?.spend || 0, cta.moneda), 0), 0);
-  const leads = (fechas) => cuentas.reduce((s, cta) => s + fechas.reduce((t, f) => t + (cta.dias[f]?.leads || 0), 0), 0);
+  // Si el cliente comparte sus leads reales (BigQuery), se cuentan esos y no los que informan las plataformas.
+  const leads = reales
+    ? (fechas) => fechas.reduce((t, f) => t + (reales[f]?.total || 0), 0)
+    : (fechas) => cuentas.reduce((s, cta) => s + fechas.reduce((t, f) => t + (cta.dias[f]?.leads || 0), 0), 0);
+  const fuentes = (fechas) => {
+    const m = {}; for (const f of fechas) for (const [k, v] of Object.entries(reales?.[f]?.porFuente || {})) m[k] = (m[k] || 0) + v;
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(", ");
+  };
   const detalle = (fechas) => cuentas.map((cta) => {
     const g = fechas.reduce((t, f) => t + conv(cta.dias[f]?.spend || 0, cta.moneda), 0);
     const l = fechas.reduce((t, f) => t + (cta.dias[f]?.leads || 0), 0);
-    return `${cta.plataforma} ${fmt(g, mon)} · ${Math.round(l)} leads`;
-  }).join("  |  ");
+    return reales ? `${cta.plataforma} ${fmt(g, mon)}` : `${cta.plataforma} ${fmt(g, mon)} · ${Math.round(l)} leads`;
+  }).join("  |  ") + (reales ? `\nLeads reales (CRM): ${Math.round(leads(fechas))}${fuentes(fechas) ? ` (${fuentes(fechas)})` : ""}` : "");
 
   const rango = (desde, hasta) => { const out = []; for (let d = desde; d <= hasta; d = addDays(d, 1)) out.push(d); return out; };
   const mesHastaHoy = rango(`${MES}-01`, HOY);
@@ -329,12 +337,17 @@ async function main() {
     if (tk?.enabled && tk.advertiserId) {
       try { cuentas.push(await leerTiktok(tk)); } catch (e) { errores.push(`TikTok ${tk.label || ""}: ${e.message}`); }
     }
+    let reales = null;
+    if (client.alerts.leadsBigQuery) {
+      try { reales = await leadsPorDia(client.alerts.leadsBigQuery, addDays(HOY, -8)); console.log(`  BigQuery leads ayer: ${reales[AYER]?.total || 0}`); }
+      catch (e) { errores.push(`Leads reales (BigQuery): ${e.message}`); }
+    }
     for (const cta of cuentas) console.log(`  ${cta.plataforma} ${cta.label}: ${cta.estado}, hoy ${(cta.dias[HOY]?.spend || 0).toFixed(2)} ${cta.moneda}, ayer ${(cta.dias[AYER]?.spend || 0).toFixed(2)} / ${cta.dias[AYER]?.leads || 0} leads`);
     errores.forEach((e) => console.log(`  ⚠ ${e}`));
 
     // Si una API falla 3 corridas seguidas avisamos (si no, una cuenta caída para la API pasa desapercibida).
     st._fallos = errores.length ? (st._fallos || 0) + 1 : 0;
-    const { alertas, resueltas } = evaluar(client, cuentas);
+    const { alertas, resueltas } = evaluar(client, cuentas, reales);
     if (st._fallos >= 3) alertas.push({ key: `apifalla:${HOY}`, asunto: "⚠ No se pudieron leer algunas cuentas",
       cuerpo: `Las alertas no pudieron leer estas cuentas en las últimas ${st._fallos} corridas:\n${errores.join("\n")}` });
 
@@ -343,7 +356,7 @@ async function main() {
     if (HORA >= 9 && !st[`parte:${HOY}`] && !DRY) {
       const caidas = cuentas.filter((c) => !c.activa).map((c) => `${c.plataforma} ${c.estado}`);
       const gAyer = cuentas.reduce((t, c) => t + ((c.dias[AYER]?.spend || 0) * (c.moneda === "USD" ? 1 : 1 / (Number(client.usdRate) || 1))), 0);
-      const lAyer = cuentas.reduce((t, c) => t + (c.dias[AYER]?.leads || 0), 0);
+      const lAyer = reales ? (reales[AYER]?.total || 0) : cuentas.reduce((t, c) => t + (c.dias[AYER]?.leads || 0), 0);
       const ok = !caidas.length && !errores.length;
       const cplAyer = lAyer > 0 ? gAyer / lAyer : 0;
       const asunto = `${ok ? "✅ Todo en orden" : "⚠️ Revisar"} · ayer US$${Math.round(gAyer)}, ${Math.round(lAyer)} leads${lAyer ? `, CPL US$${cplAyer.toFixed(1)}` : ""}`;
