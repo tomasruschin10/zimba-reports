@@ -8,6 +8,8 @@
 <style>
 body{margin:0;background:#F4F2EE}
 a{color:#1B1B1A}a:hover{color:#A8432A}
+.sm{display:none}
+.brand{white-space:nowrap}
 .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
 .fold{height:calc(100svh - 73px);min-height:520px;max-height:860px;box-sizing:border-box;padding-top:24px;padding-bottom:24px;display:flex;align-items:center}
 .fold .hero{width:100%;height:100%;grid-template-rows:100%}
@@ -23,6 +25,10 @@ a{color:#1B1B1A}a:hover{color:#A8432A}
 .fold{height:auto;max-height:none;padding-top:28px;padding-bottom:40px}
 .fold .hero{height:auto;grid-template-rows:auto}
 .hero-img{height:300px}
+.lg{display:none}.sm{display:inline}
+.hero-img{order:-1;height:240px}
+.hero{gap:24px}
+
 .gallery .big{grid-row:auto}
 .facts{grid-template-columns:1fr 1fr}
 
@@ -35,10 +41,10 @@ a{color:#1B1B1A}a:hover{color:#A8432A}
 
 <header style="position: sticky; top: 0; z-index: 5; background: rgba(244,242,238,0.94); border-bottom: 1px solid #E2DED6">
 <div class="wrap" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px">
-<div style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.06em">JUFRÉ HOUSE</div>
+<div class="brand" style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 20px; letter-spacing: 0.06em">JUFRÉ HOUSE</div>
 <a href="https://wa.me/5491167470707?text=Hola%21%20Quiero%20info%20de%20Jufr%C3%A9%20House" style="display: inline-flex; align-items: center; gap: 8px; background: #1B1B1A; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 15px; padding: 12px 18px; border-radius: 999px; min-height: 44px; box-sizing: border-box">
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z"></path></svg>
-Consultar por WhatsApp</a>
+<span class="lg">Consultar por WhatsApp</span><span class="sm">WhatsApp</span></a>
 </div>
 </header>
 
@@ -50,7 +56,7 @@ Consultar por WhatsApp</a>
 <p style="margin: 0; font-size: 19px; line-height: 1.5; color: #4A4843; max-width: 560px">Obra terminada. Monoambientes y 2 ambientes de 27 a 41 m², y un penthouse de 117 m² con balcón en esquina.</p>
 <div style="display: flex; align-items: baseline; gap: 10px">
 <span style="font-size: 16px; color: #4A4843">Desde</span>
-<span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 40px">USD 81.000</span>
+<span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 40px; white-space: nowrap">USD 81.000</span>
 </div>
 <div style="display: flex; flex-wrap: wrap; gap: 12px">
 <a href="https://wa.me/5491167470707?text=Hola%21%20Quiero%20info%20de%20Jufr%C3%A9%20House" style="display: inline-flex; align-items: center; justify-content: center; background: #1B1B1A; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 16px; padding: 16px 26px; border-radius: 999px; min-height: 52px; box-sizing: border-box">Coordinar una visita</a>
