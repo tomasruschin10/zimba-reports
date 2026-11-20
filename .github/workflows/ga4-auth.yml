@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       code:
-        description: "Código de autorización (de la URL localhost:4444/?code=...)"
+        description: "Pegá la dirección completa de la pestaña que quedó en localhost:4444"
         required: true
 jobs:
   auth:
@@ -18,6 +18,7 @@ jobs:
           CSEC: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
           CODE: ${{ inputs.code }}
         run: |
+          CODE=$(python3 -c 'import os,urllib.parse as u;v=os.environ["CODE"].strip();q=u.parse_qs(u.urlparse(v).query);print(q.get("code",[v])[0])')
           RESP=$(curl -s https://oauth2.googleapis.com/token \
             --data-urlencode "code=$CODE" --data-urlencode "client_id=$CID" \
             --data-urlencode "client_secret=$CSEC" --data-urlencode "redirect_uri=http://localhost:4444" \
