@@ -12,10 +12,12 @@ import { createServer } from "node:http";
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => new Promise((res) => rl.question(q, res));
 
-const SCOPE = "https://www.googleapis.com/auth/adwords";
+// "node get-refresh-token.mjs ga4" → token de Google Analytics (secret GA4_REFRESH_TOKEN)
+const GA4 = process.argv[2] === "ga4";
+const SCOPE = GA4 ? "https://www.googleapis.com/auth/analytics.readonly" : "https://www.googleapis.com/auth/adwords";
 const REDIRECT = "http://localhost:4444";
 
-console.log("\n=== Generador de refresh token · Google Ads ===\n");
+console.log(`\n=== Generador de refresh token · ${GA4 ? "Google Analytics (GA4)" : "Google Ads"} ===\n`);
 const clientId = (await ask("Pegá tu Client ID y Enter:\n> ")).trim();
 const clientSecret = (await ask("\nPegá tu Client Secret y Enter:\n> ")).trim();
 
@@ -57,7 +59,7 @@ const server = createServer(async (req, res) => {
     console.log("║  ✓ REFRESH TOKEN generado                     ║");
     console.log("╚══════════════════════════════════════════════╝\n");
     console.log(data.refresh_token);
-    console.log("\nGuardalo seguro. Es el que va a usar el sitio.\n");
+    console.log(`\nGuardalo en GitHub como secret ${GA4 ? "GA4_REFRESH_TOKEN" : "GOOGLE_ADS_REFRESH_TOKEN"}.\n`);
   } else {
     console.log("\nError:", JSON.stringify(data, null, 2));
   }

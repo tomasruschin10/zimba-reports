@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { webcrypto as crypto } from "node:crypto";
 import { fetchMetaCampaignDaily, fetchMetaAdDaily, fetchMetaDemographics, fetchMetaDevices, fetchMetaThumbnails, metaDiag, metaProbe, fetchMetaAdsetDaily, fetchMetaStatuses } from "./fetchers/meta.js";
 import { fetchGoogleAll } from "./fetchers/google.js";
+import { fetchGa4, applyGa4 } from "./fetchers/ga4.js";
 import { fetchTiktokCampaignDaily, fetchTiktokAdDaily } from "./fetchers/tiktok.js";
 import { fetchPinterestCampaignDaily } from "./fetchers/pinterest.js";
 import { fetchTiendanube } from "./fetchers/tiendanube.js";
@@ -154,7 +155,7 @@ async function buildClient(client) {
   }
 
   // ── Google Ads (opcional). `google` puede ser un objeto (una cuenta) o una
-  // lista de cuentas (ej. Bacan: BacanByMantra, Mantra y Briut). ──
+  // lista de cuentas. ──
   let googleAdGroups = [];
   let googleKeywords = [];
   const gSrc = client.sources.google;
@@ -175,6 +176,29 @@ async function buildClient(client) {
       console.log(`  ${client.slug}/${label}: ${campaigns.length} campaña, ${adGroups.length} adgroup, ${keywords.length} keyword (Google Ads)`);
     } catch (e) {
       console.warn(`  Google Ads ${label}: ${e.message}`);
+    }
+  }
+
+  // ── GA4 (opcional): ventas reales. Con googleRevenue:true, las compras y el
+  // valor de Google Ads salen de GA4 (google / cpc, último clic) y no de la
+  // plataforma. Además trae la facturación de toda la tienda por fuente.
+  let ga4Channels = null;
+  let revenueSource = null;
+  const ga = client.sources.ga4;
+  if (ga?.propertyId) {
+    try {
+      const g4 = await fetchGa4(ga, since, until);
+      ga4Channels = g4.channels;
+      if (ga.googleRevenue) {
+        const gAccts = new Set(Object.keys(accountPlatforms).filter((a) => accountPlatforms[a] === "google"));
+        applyGa4(campaignRows.filter((r) => gAccts.has(r.account)), g4.campaigns, (r) => `${r.date}|${r.campaign_name}`);
+        applyGa4(googleAdGroups, g4.adGroups, (r) => `${r.date}|${r.campaign_name}|${r.ad_group_name}`);
+        applyGa4(googleKeywords, g4.keywords, (r) => `${r.date}|${r.ad_group_name}|${String(r.keyword).toLowerCase()}`);
+        revenueSource = "ga4";
+      }
+      console.log(`  ${client.slug}/GA4: ${g4.campaigns.length} filas de campaña, ${g4.channels.length} de fuentes`);
+    } catch (e) {
+      console.warn(`  GA4: ${e.message}`);
     }
   }
 
@@ -260,6 +284,8 @@ async function buildClient(client) {
     googleKeywords,
     brandMatch: (Array.isArray(gSrc) ? gSrc.find((x) => x.brandMatch)?.brandMatch : gSrc?.brandMatch) || "",
     tienda,
+    ga4Channels,
+    revenueSource,
   };
 }
 
