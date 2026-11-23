@@ -1,5 +1,5 @@
 {
- "at": "2026-11-23T09:47:45.743Z",
+ "at": "2026-11-23T10:12:42.855Z",
  "meta": {
   "act_952658240045556": {
    "consultas": [
@@ -41,7 +41,8 @@
       "actions",
       "action_values",
       "date_start",
-      "date_stop"
+      "date_stop",
+      "account_id"
      ],
      "muestra": {
       "spend": "77578.18",
@@ -325,7 +326,7 @@
      "level": "ad",
      "fields": "ad_name,adset_name,campaign_name,spend,impressions,clicks,actions,action_values",
      "breakdowns": null,
-     "filas": 3231,
+     "filas": 3232,
      "clavesPrimeraFila": [
       "actions",
       "date_start",
@@ -343,7 +344,7 @@
       "clicks": "4",
       "date_start": "2026-09-01"
      },
-     "conGasto": 3062
+     "conGasto": 3063
     },
     {
      "level": "account",
