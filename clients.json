@@ -225,5 +225,25 @@
         ]
       }
     }
+  },
+  {
+    "slug": "fur",
+    "name": "Fur",
+    "usdRate": 1350,
+    "sources": {
+      "meta": {
+        "accounts": [
+          {
+            "id": "act_1849578705461466",
+            "label": "Fur",
+            "mode": "sales"
+          }
+        ]
+      },
+      "tiendanube": {
+        "enabled": false,
+        "slug": "fur"
+      }
+    }
   }
 ]

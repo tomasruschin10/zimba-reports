@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 // ─────────────────────────────────────────────
 // Tienda Nube — ventas reales de la tienda.
 //
@@ -70,10 +73,16 @@ function fechaART(raw, tz) {
 }
 
 export async function fetchTiendanube(config, since, until) {
-  const storeId = String(config.storeId || "").trim();
+  // Fallback: token y storeId guardados en el servidor por el workflow
+  // "Tiendanube · autorizar" (~/.tiendanube_<slug>, JSON {access_token, user_id}).
+  let saved = {};
+  if (config.slug) {
+    try { saved = JSON.parse(fs.readFileSync(path.join(os.homedir(), `.tiendanube_${config.slug}`), "utf8")); } catch {}
+  }
+  const storeId = String(config.storeId || saved.user_id || "").trim();
   if (!storeId) throw new Error("Falta sources.tiendanube.storeId en clients.json");
-  const token = process.env[config.tokenEnv];
-  if (!token) throw new Error(`Falta el secret ${config.tokenEnv}`);
+  const token = (config.tokenEnv && process.env[config.tokenEnv]) || saved.access_token;
+  if (!token) throw new Error(`Falta el token de Tiendanube (${config.tokenEnv || "~/.tiendanube_" + config.slug})`);
 
   const orders = await fetchOrders(storeId, token, since, until);
 

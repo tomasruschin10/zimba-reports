@@ -1,0 +1,33 @@
+name: Tiendanube · autorizar
+# Canjea el código de autorización de Tiendanube (un solo uso, vence en minutos)
+# por el access token de la tienda y lo guarda en el servidor
+# (~/.tiendanube_<slug>). El token nunca aparece en los logs.
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "Cliente (slug de clients.json, ej: fur)"
+        required: true
+      code:
+        description: "Dirección completa de la pestaña después de autorizar (o solo el code)"
+        required: true
+jobs:
+  auth:
+    runs-on: [self-hosted, zimba]
+    steps:
+      - name: Canjear código y guardar token
+        env:
+          CSEC: ${{ secrets.TIENDANUBE_CLIENT_SECRET }}
+          CODE_IN: ${{ inputs.code }}
+          SLUG: ${{ inputs.slug }}
+        run: |
+          if [ -z "$CSEC" ]; then echo "Falta el secret TIENDANUBE_CLIENT_SECRET en GitHub"; exit 1; fi
+          CODE=$(python3 -c 'import os,urllib.parse as u;v=os.environ["CODE_IN"].strip();q=u.parse_qs(u.urlparse(v).query);print(q.get("code",[v])[0])')
+          RESP=$(curl -s -X POST https://www.tiendanube.com/apps/authorize/token \
+            --data-urlencode "client_id=36475" --data-urlencode "client_secret=$CSEC" \
+            --data-urlencode "grant_type=authorization_code" --data-urlencode "code=$CODE")
+          OK=$(echo "$RESP" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("1" if d.get("access_token") else "")')
+          if [ -z "$OK" ]; then echo "Falló: $(echo "$RESP" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("error"),d.get("error_description"))')"; exit 1; fi
+          SLUG=$(echo "$SLUG" | tr -cd 'a-z0-9-')
+          umask 077; echo "$RESP" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(json.dumps({"access_token":d["access_token"],"user_id":d.get("user_id")}))' > "$HOME/.tiendanube_$SLUG"
+          echo "✓ Token guardado para $SLUG · tienda $(echo "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("user_id"))')"

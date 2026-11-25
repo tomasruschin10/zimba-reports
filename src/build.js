@@ -247,9 +247,9 @@ async function buildClient(client) {
   // ── Tienda Nube (opcional): ventas REALES del ecommerce ──
   let tienda = null;
   const tn = client.sources.tiendanube;
-  if (tn?.enabled && tn.storeId) {
+  if (tn?.enabled) {
     try {
-      tienda = await fetchTiendanube({ storeId: tn.storeId, tokenEnv: tn.tokenEnv }, since, until);
+      tienda = await fetchTiendanube({ storeId: tn.storeId, tokenEnv: tn.tokenEnv, slug: tn.slug }, since, until);
       const tot = tienda.daily.reduce((a, r) => a + r.orders, 0);
       const lost = tienda.lost.reduce((a, r) => a + r.orders, 0);
       console.log(`  ${client.slug}/TiendaNube: ${tot} órdenes pagadas, ${lost} perdidas, ${tienda.products.length} productos`);
