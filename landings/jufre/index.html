@@ -197,6 +197,7 @@ document.getElementById('f').addEventListener('submit',function(e){e.preventDefa
 var t='Hola! Soy '+n+'. Quiero info de Jufré House ('+i+').';
 if(window.fbq)fbq('track','Lead',{content_name:i});
 window.open('https://wa.me/5491167470707?text='+encodeURIComponent(t),'_blank');});
+document.querySelectorAll('a[href^="https://drive.google.com"]').forEach(function(a){a.addEventListener('click',function(){if(window.fbq)fbq('trackCustom','VerFotosVideos',{unidad:a.textContent.trim()});});});
 document.querySelectorAll('a[href^="https://wa.me"]').forEach(function(a){a.target='_blank';a.rel='noopener';a.addEventListener('click',function(){if(window.fbq)fbq('track','Contact');});});
 </script><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>(function(){if(!window.L)return;var c=[-34.5964018,-58.4318016];var m=L.map('map',{center:c,zoom:15,scrollWheelZoom:false,zoomControl:true,attributionControl:true});
