@@ -1,0 +1,13 @@
+const c={dt:process.env.GOOGLE_ADS_DEVELOPER_TOKEN,id:process.env.GOOGLE_ADS_CLIENT_ID,s:process.env.GOOGLE_ADS_CLIENT_SECRET,r:process.env.GOOGLE_ADS_REFRESH_TOKEN,l:(process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID||"").replace(/-/g,"")};
+const at=(await (await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:c.id,client_secret:c.s,refresh_token:c.r,grant_type:"refresh_token"})})).json()).access_token;
+async function q(cid,query){const r=await fetch(`https://googleads.googleapis.com/v24/customers/${cid}/googleAds:searchStream`,{method:"POST",headers:{Authorization:`Bearer ${at}`,"developer-token":c.dt,"login-customer-id":c.l,"Content-Type":"application/json"},body:JSON.stringify({query})});const b=await r.json();if(!r.ok)return{error:JSON.stringify(b).slice(0,500)};return(Array.isArray(b)?b:[b]).flatMap(x=>x.results||[]);}
+const id="6001698719";
+const out={
+ rsa:await q(id,"SELECT campaign.name, ad_group.name, ad_group_ad.status, ad_group_ad.ad.id, ad_group_ad.ad.final_urls, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions FROM ad_group_ad WHERE ad_group_ad.status = 'ENABLED' AND campaign.status = 'ENABLED'"),
+ ag_assets:await q(id,"SELECT campaign.name, asset_group.name, asset_group.status, asset_group.final_urls, asset.text_asset.text, asset_group_asset.field_type, asset_group_asset.status FROM asset_group_asset WHERE campaign.status='ENABLED' AND asset_group_asset.field_type IN ('HEADLINE','LONG_HEADLINE','DESCRIPTION')"),
+ promo:await q(id,"SELECT asset.id, asset.name, asset.type, asset.promotion_asset.promotion_target, asset.promotion_asset.percent_off, asset.promotion_asset.occasion, asset.promotion_asset.start_date, asset.promotion_asset.end_date, asset.promotion_asset.promotion_code FROM asset WHERE asset.type = 'PROMOTION'"),
+ camp_assets:await q(id,"SELECT campaign.name, asset.type, asset.promotion_asset.occasion, asset.promotion_asset.percent_off, asset.sitelink_asset.link_text, asset.callout_asset.callout_text, campaign_asset.status FROM campaign_asset WHERE campaign.status='ENABLED' AND campaign_asset.status='ENABLED'"),
+ cust_assets:await q(id,"SELECT asset.type, asset.promotion_asset.occasion, asset.promotion_asset.percent_off, asset.callout_asset.callout_text, asset.sitelink_asset.link_text, customer_asset.status FROM customer_asset WHERE customer_asset.status='ENABLED'"),
+ camps:await q(id,"SELECT campaign.name, campaign.status, campaign.start_date, campaign_budget.amount_micros, metrics.cost_micros FROM campaign WHERE segments.date DURING TODAY"),
+};
+process.stdout.write(JSON.stringify(out));
