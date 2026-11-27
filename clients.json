@@ -207,6 +207,7 @@
     "slug": "predial",
     "name": "Predial",
     "usdRate": 1500,
+    "desde": "2026-01-01",
     "sources": {
       "meta": {
         "accounts": [
